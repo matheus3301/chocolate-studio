@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEquipmentAction, createDefaultConfiguration, exportConfiguration } from '@chocolate-studio/midi';
+import { applyEquipmentAction, createDefaultConfiguration, exportConfiguration, studioConfigurationSchema } from '@chocolate-studio/midi';
 import { applyFcpPatches, FCP_SIZE } from '@chocolate-studio/chocolate-layout';
 import { configurationFromBytes, configurationToBytes } from '../src/hardware-mapping';
 
@@ -297,5 +297,50 @@ describe('dedicated external-pedal interface', () => {
     const result = configurationToBytes(baseline, config);
     expect(result.unsupported).toContain('hardware.preserveUnknownBank');
     expect(result.bytes).toEqual(baseline);
+  });
+});
+
+describe('metadata identifier reconciliation', () => {
+  it('allocates new Mixed IDs around valid configuration, destination, preset and Advanced IDs without renaming existing metadata', () => {
+    const metadata = createDefaultConfiguration();
+    delete metadata.mixedGroups;
+    metadata.groups[0]!.id = 'device-mixed-group-1';
+    metadata.destinations.push(
+      { id: 'device-mixed-group-1-2', name: 'Reserved suffix', channel: 2 },
+      { id: 'device-mixed-group-2', name: 'Reserved base', channel: 3 },
+    );
+    metadata.presets.push({ id: 'device-mixed-group-3', name: 'Saved preset', channel: 1, program: 12 });
+    metadata.id = 'device-mixed-group-4';
+    const valid = studioConfigurationSchema.parse(metadata);
+    const occupied = new Set([valid.id, ...valid.destinations.map(value => value.id), ...valid.presets.map(value => value.id), ...valid.groups.map(value => value.id)]);
+    const read = configurationFromBytes(image(), valid).configuration;
+    expect(read.id).toBe(valid.id);
+    expect(read.destinations).toEqual(valid.destinations);
+    expect(read.presets).toEqual(valid.presets);
+    expect(read.groups[0]!.id).toBe(valid.groups[0]!.id);
+    for (const group of read.mixedGroups!) expect(occupied.has(group.id)).toBe(false);
+    expect(configurationFromBytes(image(), read).configuration.mixedGroups!.map(group => group.id))
+      .toEqual(read.mixedGroups!.map(group => group.id));
+  });
+
+  it('reserves existing Mixed IDs before allocating Advanced IDs when hardware reveals more groups than metadata contains', () => {
+    const bytes = image(); bytes[0x5c57] = 2;
+    const metadata = createDefaultConfiguration();
+    metadata.groups[0]!.id = 'device-group-2-2';
+    metadata.id = 'device-group-2-3';
+    metadata.destinations.push({ id: 'device-group-3', name: 'Reserved destination', channel: 2 });
+    metadata.presets.push({ id: 'device-group-2', name: 'Reserved preset', channel: 1, program: 12 });
+    metadata.mixedGroups = [{ ...structuredClone(metadata.groups[0]!), id: 'device-group-2-4' }];
+    const valid = studioConfigurationSchema.parse(metadata);
+    const occupied = new Set([valid.id, ...valid.destinations.map(value => value.id), ...valid.presets.map(value => value.id),
+      ...valid.groups.map(value => value.id), ...valid.mixedGroups!.map(value => value.id)]);
+    const read = configurationFromBytes(bytes, valid).configuration;
+    expect(read.groups[0]!.id).toBe(valid.groups[0]!.id);
+    expect(read.mixedGroups![0]!.id).toBe(valid.mixedGroups![0]!.id);
+    expect(occupied.has(read.groups[1]!.id)).toBe(false);
+    expect(occupied.has(read.groups[2]!.id)).toBe(false);
+    expect(read.destinations).toEqual(valid.destinations);
+    expect(read.presets).toEqual(valid.presets);
+    expect(configurationFromBytes(bytes, read).configuration.groups.map(group => group.id)).toEqual(read.groups.map(group => group.id));
   });
 });

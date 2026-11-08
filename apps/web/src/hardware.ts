@@ -42,7 +42,7 @@ export interface WritePreview {
   /** Adapter-owned token, bound to this session and exact complete baseline hash. */
   id: string;
   baselineSha256: string;
-  /** Complete draft; browser adapter makes the target mode explicit, including legacy intent. */
+  /** Complete planned configuration, including explicit target mode and reconciled metadata IDs. */
   configuration: StudioConfiguration;
   patches: BytePatch[];
   warnings: string[];

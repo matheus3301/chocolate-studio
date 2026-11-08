@@ -251,8 +251,11 @@ export function createBrowserHardware(): HardwareService {
       // Legacy intent cannot silently select Advanced against a connected image.
       valid.controller = { ...valid.controller, mode: valid.controller?.mode ?? before[0]! };
       const mapped = configurationToBytes(before, valid);
+      // Reconcile/validate target metadata before sending anything. A schema failure
+      // must not first surface after ACK and successful full-device verification.
+      const plannedConfiguration = mapped.unsupported.length ? valid : configurationFromBytes(mapped.bytes, valid).configuration;
       const preview: WritePreview = { id: crypto.randomUUID(), baselineSha256: observed.rawBackup.sha256,
-        configuration: clone(valid), patches: [], warnings: mapped.warnings, unsupported: mapped.unsupported };
+        configuration: clone(plannedConfiguration), patches: [], warnings: mapped.warnings, unsupported: mapped.unsupported };
       for (let i = 0; i < before.length; i++) if (before[i] !== mapped.bytes[i]) preview.patches.push({ offset: i, before: before[i]!, after: mapped.bytes[i]! });
       pending = { preview: clone(preview), bytes: mapped.bytes.slice(), baseline: before.slice(), writeRanges: mapped.writeRanges, epoch };
       return clone(preview);

@@ -22,7 +22,7 @@ const hasOpaque = (bank: DecodedBank) => bank.records.some(record =>
   record.enabled && record.message?.type !== 'pc' && record.message?.type !== 'cc');
 
 function readGroups(groups: readonly Pick<DecodedGroup, 'switches'>[], previousGroups: StudioConfiguration['groups'] | undefined,
-  warnings: string[], prefix: string): StudioConfiguration['groups'] {
+  warnings: string[], prefix: string, usedIds: Set<string>): StudioConfiguration['groups'] {
   return groups.map((group, index) => {
     const previous = previousGroups?.[index];
     const switches = {} as StudioConfiguration['groups'][number]['switches'];
@@ -48,7 +48,15 @@ function readGroups(groups: readonly Pick<DecodedGroup, 'switches'>[], previousG
       switches[id] = { ...retained, label: previousSwitch?.label ?? id, behavior: behaviors[sw.modeCode],
         actions: primaryMessages.length ? [{ gesture: 'press', messages: primaryMessages }] : [], secondaryMessages };
     }
-    return { id: previous?.id ?? `${prefix}-${index + 1}`, name: previous?.name ?? `Group ${index + 1}`, switches };
+    let id = previous?.id;
+    if (id === undefined) {
+      const base = `${prefix}-${index + 1}`;
+      id = base;
+      let suffix = 2;
+      while (usedIds.has(id)) id = `${base}-${suffix++}`;
+      usedIds.add(id);
+    }
+    return { id, name: previous?.name ?? `Group ${index + 1}`, switches };
   });
 }
 
@@ -58,8 +66,14 @@ export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfi
   const warnings: string[] = [];
   if (decoded.issues.length) warnings.push('hardware.unrecognizedFields');
   const count = Math.min(8, Math.max(1, decoded.globals.advancedMaxGroupIndex + 1));
+  const configurationId = metadata?.id ?? 'chocolate-configuration';
+  // Reserve every existing ID before either mode allocates newly discovered groups.
+  const usedIds = new Set([configurationId]);
+  for (const resources of [metadata?.destinations, metadata?.presets, metadata?.groups, metadata?.mixedGroups]) {
+    for (const resource of resources ?? []) usedIds.add(resource.id);
+  }
   const configuration: StudioConfiguration = {
-    formatVersion: metadata?.formatVersion ?? 1, id: metadata?.id ?? 'chocolate-configuration', name: metadata?.name ?? 'Chocolate Plus',
+    formatVersion: metadata?.formatVersion ?? 1, id: configurationId, name: metadata?.name ?? 'Chocolate Plus',
     destinations: structuredClone(metadata?.destinations ?? []), presets: structuredClone(metadata?.presets ?? []),
     controller: {
       ...Object.fromEntries((Object.keys(FCP_FIELDS) as FcpField[]).flatMap(field => {
@@ -81,8 +95,8 @@ export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfi
       interfaceAssignments: decoded.interfaceBank.records.flatMap((record, slot) =>
         record.assignment ? [{ slot, ...record.assignment }] : []),
     },
-    groups: readGroups(decoded.advancedGroups.slice(0, count), metadata?.groups, warnings, 'device-group'),
-    mixedGroups: readGroups(decoded.mixedGroups, metadata?.mixedGroups, warnings, 'device-mixed-group'),
+    groups: readGroups(decoded.advancedGroups.slice(0, count), metadata?.groups, warnings, 'device-group', usedIds),
+    mixedGroups: readGroups(decoded.mixedGroups, metadata?.mixedGroups, warnings, 'device-mixed-group', usedIds),
   };
   return { configuration: studioConfigurationSchema.parse(configuration), warnings: [...new Set(warnings)],
     controller: readControllerMetadata(bytes) };

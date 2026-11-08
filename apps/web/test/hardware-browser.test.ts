@@ -308,3 +308,29 @@ describe('mode-owned payload readback', () => {
     expect(f.service.getSnapshot().baseline!.bytes).toEqual(original);
   });
 });
+
+describe('metadata identifier reconciliation', () => {
+  it('resolves legacy ID collisions in preview before writes and keeps those IDs through successful verified readback', async () => {
+    const f = setup(); await connect(f); const read = await protectedRead(f.service);
+    const original = read.rawBackup.bytes.slice();
+    delete read.configuration.mixedGroups;
+    read.configuration.groups[0]!.id = 'device-mixed-group-1';
+    read.configuration.destinations.push({ id: 'device-mixed-group-2', name: 'Saved destination', channel: 2 });
+    read.configuration.groups[0]!.switches.A.actions = [{ gesture: 'press', messages: [{ type: 'pc', channel: 1, program: 12 }] }];
+    const preview = await f.service.preview(read.configuration);
+    expect(f.writes).toBe(0);
+    expect(preview.configuration.groups[0]!.id).toBe('device-mixed-group-1');
+    const mixedIds = preview.configuration.mixedGroups!.map(group => group.id);
+    expect(mixedIds).not.toContain('device-mixed-group-1');
+    expect(mixedIds).not.toContain('device-mixed-group-2');
+    expect(read.configuration.mixedGroups).toBeUndefined();
+    const verified = await f.service.write(preview.id);
+    expect(f.bytes[97]).toBe(12);
+    expect(verified.configuration.groups[0]!.id).toBe('device-mixed-group-1');
+    expect(verified.configuration.mixedGroups!.map(group => group.id)).toEqual(mixedIds);
+    expect(verified.configuration.destinations).toEqual(read.configuration.destinations);
+    expect(f.service.getSnapshot().status).toBe('connected');
+    expect(f.service.getSnapshot().verified!.rawBackup.bytes).toEqual(f.bytes);
+    expect(f.service.getSnapshot().baseline!.bytes).toEqual(original);
+  });
+});
