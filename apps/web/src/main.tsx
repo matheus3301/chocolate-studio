@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { database } from './storage.js';
 import { initializeLanguage } from './i18n.js';
+import { createBrowserHardware } from './hardware-browser.js';
 import './styles.css';
 
 let locale: 'pt-BR' | 'en' = navigator.language.startsWith('pt') ? 'pt-BR' : 'en';
@@ -16,4 +17,5 @@ await initializeLanguage(locale);
 document.documentElement.lang = locale;
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');
-createRoot(root).render(<StrictMode><App /></StrictMode>);
+const hardware = createBrowserHardware();
+createRoot(root).render(<StrictMode><App hardware={hardware} /></StrictMode>);
