@@ -21,7 +21,6 @@ const known = (bank: DecodedBank) => bank.records.flatMap(record => record.messa
 /** Decode supported advanced banks without treating hidden/unknown bytes as empty data. */
 export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfiguration) {
   const decoded = decodeFcp(bytes);
-  const matchedDestinations = new Set<string>();
   const warnings: string[] = [];
   if (decoded.mode !== 3) warnings.push('hardware.advancedInactive');
   if (decoded.issues.length) warnings.push('hardware.unrecognizedFields');
@@ -51,9 +50,6 @@ export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfi
           if (!secondaryMatches) delete retained.actionBindings.secondary;
           if (!retained.actionBindings.primary && !retained.actionBindings.secondary) delete retained.actionBindings;
         }
-        for (const message of [...(primaryMatches ? primaryMessages : []), ...(secondaryMatches ? secondaryMessages : [])]) {
-          if (message.destinationId) matchedDestinations.add(message.destinationId);
-        }
         switches[id] = { ...retained, label: previousSwitch?.label ?? id,
           behavior: behaviors[sw.modeCode] ?? 'single',
           actions: primaryMessages.length ? [{ gesture: 'press', messages: primaryMessages }] : [], secondaryMessages };
@@ -61,9 +57,6 @@ export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfi
       return { id: previous?.id ?? `device-group-${index + 1}`, name: previous?.name ?? `Group ${index + 1}`, switches };
     }),
   };
-  for (const destination of configuration.destinations) {
-    if (!matchedDestinations.has(destination.id)) delete destination.profile;
-  }
   return { configuration: studioConfigurationSchema.parse(configuration), warnings: [...new Set(warnings)],
     controller: readControllerMetadata(bytes) };
 }

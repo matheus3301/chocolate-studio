@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultConfiguration } from '@chocolate-studio/midi';
+import { applyEquipmentAction, createDefaultConfiguration, exportConfiguration } from '@chocolate-studio/midi';
 import { applyFcpPatches, FCP_SIZE } from '@chocolate-studio/chocolate-layout';
 import { configurationFromBytes, configurationToBytes } from '../src/hardware-mapping';
 
@@ -48,5 +48,37 @@ describe('intent to device mapping', () => {
     config.groups[0]!.switches.A.secondaryMessages = [];
     const result = configurationToBytes(baseline, config);
     expect(Array.from(result.bytes.slice(199, 204))).toEqual([0, 3, 1, 70, 99]);
+  });
+});
+
+describe('local equipment metadata across device reads', () => {
+  it('preserves an unused selected destination profile and keeps a raw v1 project at v1', () => {
+    const config = createDefaultConfiguration();
+    config.destinations.push({ id: 'unused', name: 'Selected equipment', channel: 4, profile: { modelId: 'line6.m5', profileVersion: '0.1.0' } });
+    const bytes = configurationToBytes(image(), config).bytes;
+    const decoded = configurationFromBytes(bytes, config).configuration;
+    expect(decoded.formatVersion).toBe(2);
+    expect(decoded.destinations.find(destination => destination.id === 'unused')?.profile).toEqual({ modelId: 'line6.m5', profileVersion: '0.1.0' });
+    const rawV1 = { ...createDefaultConfiguration(), formatVersion: 1 as const };
+    const rawRead = configurationFromBytes(configurationToBytes(image(), rawV1).bytes, rawV1).configuration;
+    expect(rawRead.formatVersion).toBe(1);
+    expect(JSON.parse(exportConfiguration(rawRead)).formatVersion).toBe(1);
+  });
+
+  it('retains matching action bindings but clears only the externally changed sequence', () => {
+    let config = createDefaultConfiguration();
+    const reference = { modelId: 'line6.m5', profileVersion: '0.1.0', destinationId: 'destination-1' };
+    config = applyEquipmentAction(config, 'group-1', 'A', 'primary', { ...reference, actionId: 'select-preset', parameters: { 'preset-number': 1 } }, { behavior: 'shortLong' });
+    config = applyEquipmentAction(config, 'group-1', 'A', 'secondary', { ...reference, actionId: 'tuner-enter', parameters: {} });
+    const bytes = configurationToBytes(image(), config).bytes;
+    expect(configurationFromBytes(bytes, config).configuration.groups[0]!.switches.A.actionBindings).toEqual(config.groups[0]!.switches.A.actionBindings);
+    bytes[97] = 8; // External device edit: primary PC8, no longer the saved preset1 action.
+    const read = configurationFromBytes(bytes, config).configuration;
+    expect(read.formatVersion).toBe(2);
+    expect(read.groups[0]!.switches.A.actionBindings?.primary).toBeUndefined();
+    expect(read.groups[0]!.switches.A.actionBindings?.secondary).toEqual(config.groups[0]!.switches.A.actionBindings?.secondary);
+    expect(read.groups[0]!.switches.A.actions[0]!.messages).toEqual([{ type: 'pc', channel: 1, program: 8 }]);
+    expect(read.destinations[0]!.profile).toEqual({ modelId: 'line6.m5', profileVersion: '0.1.0' });
+    expect(JSON.parse(exportConfiguration(read)).formatVersion).toBe(2);
   });
 });
