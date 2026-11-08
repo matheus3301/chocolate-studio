@@ -2,6 +2,8 @@
 
 **Proposta para revisão; não autoriza implementação.** Base: beta.3, `3a7de7f`. Este brief orienta um protótipo de pesquisa separado da aplicação.
 
+**Correção após relato de operação:** para a apresentação numérica observada, localizar a atribuição por **“004 · botão A”**, com navegação **000–003 → 004–007**, em vez de exigir “Banco 2”. Ver [navegação pelo visor](display-navigation.md), que prevalece sobre referências genéricas a grupos como rótulo principal neste brief. O protótipo atual ainda não representa essa navegação.
+
 ## 1. Resultado e evidência
 
 Pessoa: músico iniciante em MIDI preparando o pedalboard. Resultado desejado: **configurar A/toque → M5 preset 1 e A/segurar → M5 preset 2, conferir no equipamento e guardar uma cópia**, sem precisar aprender PC/CC. Meta proposta: ≥80% dos participantes em até 8 minutos, sem orientação do moderador. Não é pesquisa realizada nem superioridade já demonstrada sobre CubeSuite.

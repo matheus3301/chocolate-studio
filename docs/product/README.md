@@ -8,6 +8,7 @@ Entrega de pesquisa e desenho, anterior à implementação. Objetivo: uma pessoa
 | --- | --- |
 | [Protótipo navegável](../../research/prototypes/guided-setup/index.html) · [escopo e verificação](../../research/prototypes/guided-setup/README.md) | Conexão simulada → equipamento → editor físico → revisão → teste separado. |
 | [Experiência guiada](guided-experience.md) | Problemas, alternativas, telas, textos PT/EN, recuperação, acessibilidade e avaliação com iniciantes. |
+| [Navegação pelo visor — correção](display-navigation.md) | Referência 000–003 → 004–007, estados piscando/fixo e edição pelos números vistos no pedal. Substitui “Banco 2” como rótulo principal. |
 | [Capacidades do Chocolate](controller-capabilities.md) | Evidência própria, comportamentos, E/F por modo, preservação e critérios para testes físicos. |
 | [Perfil da M5](../../research/devices/line6-m5.md) | Mapeamento completo da tabela MIDI documentada e limitações de conexão/ações. |
 | [Catálogo extensível](../../research/templates/README.md) | JSON Schema, perfil bilíngue da M5 e template A/toque/segurar; proposta ainda não carregada pela aplicação. |
