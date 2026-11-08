@@ -6,7 +6,8 @@ import { BinarySnapshot } from './snapshot.js';
 export const candidateEvidence = Object.freeze({
   status: 'native-transport-hardware-observed' as const,
   libraryHardwareQualified: true as const,
-  libraryQualificationScope: 'FootCtrlPlus_016:full-read-channel-write-readback-restore' as const,
+  libraryQualificationScope: 'FootCtrlPlus_016:native-full-read-channel-and-bank-storage-write-readback-restore' as const,
+  bankStorageRoundtripQualified: true as const,
   webMidiHardwareQualified: false as const,
   coordinatorIndependentHardwareValidated: true as const,
   readChunkSize: 1024,

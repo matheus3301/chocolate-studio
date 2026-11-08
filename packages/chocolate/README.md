@@ -26,7 +26,9 @@ Behavioral tests cover malformed/truncated input, isolation, diffs, cancellation
 
 Coordinator first qualified an independent native codec, then compiled and ran this actual TypeScript `ProtocolSession` through a native transport on physical `FootCtrlPlus_016`: identity query, complete read matching the CubeSuite export, `writeAndVerify(2, [2])`, full read with only channel changed, `writeAndVerify(2, [0])`, and full read matching the original baseline. Evidence: coordinator's private `own-typescript-library-001.json`; no private capture copied. `libraryHardwareQualified: true` is scoped to that native-transport/read/channel-write/readback/restore sequence. Web MIDI remains unqualified. Public independently reviewed vectors: `research/experiments/001-hardware-roundtrip.md` and `research/fixtures/channel-roundtrip.json`, integrated by coordinator. No community protocol implementation/tables were used.
 
-Banks, other field layouts, physical output, power-cycle persistence, other firmware and factory reset remain unqualified/unsupported.
+Coordinator subsequently exercised this actual `ProtocolSession` with their separately owned layout: eight patches matched the independently validated bank image exactly (20 changed bytes); `writeAndVerify` sent the complete advanced region at 0x5d, length 0x3420, then mode 3; full reread matched, and restoring region/mode restored the original full baseline. Private evidence: `own-typescript-banks-001.json` / `verify-library-banks.mjs`. This qualifies native bank **storage** roundtrip, not physical footswitch behavior. The coordinator-owned bank layout is integrated separately; this worktree's draft API still edits only channel.
+
+Unimplemented field layouts, physical output, power-cycle persistence, other firmware and factory reset remain unqualified/unsupported. Bank storage read/write/readback/restoration is qualified only as described above.
 
 ## Checks and integration
 
