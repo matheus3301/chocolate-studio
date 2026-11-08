@@ -118,8 +118,8 @@
           "pt-BR": "Selecionar preset"
         },
         "description": {
-          "en": "Recall an existing slot 01–24. Does not load an audio file, rename, or save a sound. Display number minus one is the exact PC value; no bank select.",
-          "pt-BR": "Seleciona uma posição existente 01–24. Não carrega arquivo de áudio, renomeia ou salva timbre. O valor PC exato é o número exibido menos um, sem seleção de banco."
+          "en": "Recall one of the 24 saved sounds.",
+          "pt-BR": "Selecione um dos 24 timbres salvos."
         },
         "parameters": {
           "preset-number": {
@@ -171,8 +171,8 @@
           "pt-BR": "Marcar tempo"
         },
         "description": {
-          "en": "Send one tap: CC64=127, within documented range 64–127. Do not append an undocumented release value or infer BPM from one tap.",
-          "pt-BR": "Envia um toque: CC64=127, dentro da faixa documentada 64–127. Não acrescente um valor de soltura não documentado nem deduza BPM de um toque."
+          "en": "Tap along to set the effect’s tempo.",
+          "pt-BR": "Toque no ritmo para definir o tempo do efeito."
         },
         "parameters": {},
         "messages": [
@@ -214,8 +214,8 @@
           "pt-BR": "Desligar efeito"
         },
         "description": {
-          "en": "Request bypass: CC11=0, within 0–63. Not a learned toggle and not a change to the M5 True/DSP Bypass preference.",
-          "pt-BR": "Solicita bypass: CC11=0, dentro de 0–63. Não é uma alternância aprendida nem altera a preferência True/DSP Bypass do M5."
+          "en": "Bypass the current effect.",
+          "pt-BR": "Desative o efeito atual."
         },
         "parameters": {},
         "messages": [
@@ -256,8 +256,8 @@
           "pt-BR": "Ligar efeito"
         },
         "description": {
-          "en": "Request On: CC11=127, within 64–127. Repetition requests On again; the editor does not know the current effect state.",
-          "pt-BR": "Solicita efeito ligado: CC11=127, dentro de 64–127. Repetir solicita ligado novamente; o editor não conhece o estado atual do efeito."
+          "en": "Turn on the current effect.",
+          "pt-BR": "Ative o efeito atual."
         },
         "parameters": {},
         "messages": [
@@ -298,8 +298,8 @@
           "pt-BR": "Definir posição de expressão"
         },
         "description": {
-          "en": "Send CC1 position 0–127 to the preset’s configured expression assignments. Sounds at each endpoint are user-defined; this does not assign parameters.",
-          "pt-BR": "Envia a posição CC1 de 0–127 às atribuições de expressão configuradas no preset. Os sons nos extremos são definidos pelo usuário; isso não atribui parâmetros."
+          "en": "Use the expression settings assigned in the current preset.",
+          "pt-BR": "Use os ajustes de expressão atribuídos ao preset atual."
         },
         "parameters": {
           "position": {
@@ -353,8 +353,8 @@
           "pt-BR": "Sair do afinador"
         },
         "description": {
-          "en": "Request tuner exit: CC69=0, within 0–63. No destination-state query or toggle inference.",
-          "pt-BR": "Solicita saída do afinador: CC69=0, dentro de 0–63. Sem consulta de estado do destino nem alternância inferida."
+          "en": "Close the tuner.",
+          "pt-BR": "Feche o afinador."
         },
         "parameters": {},
         "messages": [
@@ -395,8 +395,8 @@
           "pt-BR": "Entrar no afinador"
         },
         "description": {
-          "en": "Request tuner entry: CC69=127, within 64–127. Audio mute/reference remain M5 preferences; no tuner-state feedback is assumed.",
-          "pt-BR": "Solicita entrada no afinador: CC69=127, dentro de 64–127. Mudo/referência continuam como preferências do M5; não se presume retorno do estado do afinador."
+          "en": "Open the tuner.",
+          "pt-BR": "Abra o afinador."
         },
         "parameters": {},
         "messages": [
