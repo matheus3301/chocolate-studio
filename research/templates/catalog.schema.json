@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chocolate-studio:design:destination-catalog:1",
+  "title": "Proposed destination profiles and controller templates",
+  "$comment": "Design data only. Semantic references, range expansion, evidence truth, and controller capability gates require separate checks described in README.md.",
+  "oneOf": [
+    { "$ref": "#/$defs/profile" },
+    { "$ref": "#/$defs/template" }
+  ],
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^(?!(?:__proto__|prototype|constructor)$)[a-z][a-z0-9.-]*$" },
+    "version": { "type": "string", "maxLength": 32, "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "text": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "label": {
+      "type": "object", "additionalProperties": false, "required": ["en", "pt-BR"],
+      "properties": { "en": { "$ref": "#/$defs/text" }, "pt-BR": { "$ref": "#/$defs/text" } }
+    },
+    "byte": { "type": "integer", "minimum": 0, "maximum": 127 },
+    "ids": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "source": {
+      "type": "object", "additionalProperties": false, "required": ["id", "publisher", "title", "revision", "url"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "publisher": { "$ref": "#/$defs/text" }, "title": { "$ref": "#/$defs/text" },
+        "revision": { "$ref": "#/$defs/text" }, "url": { "type": "string", "maxLength": 2048, "pattern": "^https://[^\\s]+$" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "sources": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/source" } },
+    "citation": {
+      "type": "object", "additionalProperties": false, "required": ["sourceId", "pdfPages", "section"],
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/id" }, "section": { "$ref": "#/$defs/text" },
+        "pdfPages": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "integer", "minimum": 1, "maximum": 4096 } }
+      }
+    },
+    "citations": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/citation" } },
+    "hardwareVerification": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["status"], "properties": { "status": { "const": "not-tested" } } },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "report", "controllerModelId", "destinationModelId", "firmware", "observedResponse"],
+          "properties": {
+            "status": { "const": "destination-response-verified" },
+            "report": { "type": "string", "maxLength": 2048, "pattern": "^(https://[^\\s]+|research/[a-zA-Z0-9/._-]+\\.md)$" },
+            "controllerModelId": { "$ref": "#/$defs/id" }, "destinationModelId": { "$ref": "#/$defs/id" },
+            "firmware": { "$ref": "#/$defs/text" }, "observedResponse": { "$ref": "#/$defs/text" }
+          }
+        }
+      ]
+    },
+    "requirements": {
+      "type": "object", "additionalProperties": false, "required": ["capabilities", "setupIds"],
+      "properties": { "capabilities": { "$ref": "#/$defs/ids" }, "setupIds": { "$ref": "#/$defs/ids" } }
+    },
+    "parameter": {
+      "type": "object", "additionalProperties": false, "required": ["type", "label", "minimum", "maximum", "initial"],
+      "properties": {
+        "type": { "const": "integer" }, "label": { "$ref": "#/$defs/label" },
+        "minimum": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "maximum": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "initial": { "type": "integer", "minimum": 0, "maximum": 128 }
+      }
+    },
+    "value": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["constant"], "properties": { "constant": { "$ref": "#/$defs/byte" } } },
+        {
+          "type": "object", "additionalProperties": false, "required": ["parameter", "offset"],
+          "properties": { "parameter": { "$ref": "#/$defs/id" }, "offset": { "type": "integer", "minimum": -128, "maximum": 128 } }
+        }
+      ]
+    },
+    "message": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "channel", "program"],
+          "properties": { "type": { "const": "pc" }, "channel": { "const": "destination" }, "program": { "$ref": "#/$defs/value" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "channel", "controller", "value"],
+          "properties": {
+            "type": { "const": "cc" }, "channel": { "const": "destination" },
+            "controller": { "$ref": "#/$defs/byte" }, "value": { "$ref": "#/$defs/value" }
+          }
+        }
+      ]
+    },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "description", "parameters", "messages", "requirements", "citations", "hardwareVerification"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "label": { "$ref": "#/$defs/label" }, "description": { "$ref": "#/$defs/label" },
+        "parameters": { "type": "object", "maxProperties": 8, "propertyNames": { "$ref": "#/$defs/id" }, "additionalProperties": { "$ref": "#/$defs/parameter" } },
+        "messages": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/message" } },
+        "requirements": { "$ref": "#/$defs/requirements" }, "citations": { "$ref": "#/$defs/citations" },
+        "hardwareVerification": { "$ref": "#/$defs/hardwareVerification" }
+      }
+    },
+    "setup": {
+      "type": "object", "additionalProperties": false, "required": ["id", "label", "instructions", "citations"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "label": { "$ref": "#/$defs/label" }, "instructions": { "$ref": "#/$defs/label" }, "citations": { "$ref": "#/$defs/citations" } }
+    },
+    "unavailable": {
+      "type": "object", "additionalProperties": false, "required": ["id", "label", "reason", "description", "requiredCapabilities", "citations"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "label": { "$ref": "#/$defs/label" }, "description": { "$ref": "#/$defs/label" },
+        "reason": { "enum": ["outside-pc-cc-design", "not-documented"] },
+        "requiredCapabilities": { "$ref": "#/$defs/ids" }, "citations": { "$ref": "#/$defs/citations" }
+      }
+    },
+    "connection": {
+      "type": "object", "additionalProperties": false, "required": ["midiInputs", "midiOutputs", "directUsbMidi", "instructions", "citations"],
+      "properties": {
+        "midiInputs": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "enum": ["din5", "usb-midi", "ble-midi"] } },
+        "midiOutputs": { "type": "array", "maxItems": 3, "uniqueItems": true, "items": { "enum": ["din5", "usb-midi", "ble-midi"] } },
+        "directUsbMidi": { "type": "boolean" }, "instructions": { "$ref": "#/$defs/label" }, "citations": { "$ref": "#/$defs/citations" }
+      }
+    },
+    "profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["$schema", "kind", "schemaVersion", "profileVersion", "status", "modelId", "manufacturer", "model", "label", "sources", "connection", "setup", "actions", "unavailable"],
+      "properties": {
+        "$schema": { "const": "./catalog.schema.json" }, "kind": { "const": "destination-profile" }, "schemaVersion": { "const": 1 },
+        "profileVersion": { "$ref": "#/$defs/version" }, "status": { "const": "proposal" },
+        "modelId": { "$ref": "#/$defs/id" }, "manufacturer": { "$ref": "#/$defs/text" }, "model": { "$ref": "#/$defs/text" }, "label": { "$ref": "#/$defs/label" },
+        "sources": { "$ref": "#/$defs/sources" }, "connection": { "$ref": "#/$defs/connection" },
+        "setup": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/setup" } },
+        "actions": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/action" } },
+        "unavailable": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/unavailable" } }
+      }
+    },
+    "destination": {
+      "type": "object", "additionalProperties": false, "required": ["instanceId", "modelId", "profileVersion", "name", "channel"],
+      "properties": {
+        "instanceId": { "$ref": "#/$defs/id" }, "modelId": { "$ref": "#/$defs/id" }, "profileVersion": { "$ref": "#/$defs/version" },
+        "name": { "$ref": "#/$defs/label" }, "channel": { "type": "integer", "minimum": 1, "maximum": 16 }
+      }
+    },
+    "invocation": {
+      "type": "object", "additionalProperties": false, "required": ["destinationInstanceId", "actionId", "parameters"],
+      "properties": {
+        "destinationInstanceId": { "$ref": "#/$defs/id" }, "actionId": { "$ref": "#/$defs/id" },
+        "parameters": { "type": "object", "maxProperties": 8, "propertyNames": { "$ref": "#/$defs/id" }, "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 128 } }
+      }
+    },
+    "sequence": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/invocation" } },
+    "switch": {
+      "type": "object", "additionalProperties": false, "required": ["behavior", "primary", "secondary"],
+      "properties": {
+        "behavior": { "enum": ["single", "alternate", "momentary", "long", "shortLong"] },
+        "primary": { "$ref": "#/$defs/sequence", "minItems": 1 }, "secondary": { "$ref": "#/$defs/sequence" }
+      },
+      "if": { "properties": { "behavior": { "enum": ["alternate", "momentary", "shortLong"] } }, "required": ["behavior"] },
+      "then": { "properties": { "secondary": { "minItems": 1 } } },
+      "else": { "properties": { "secondary": { "maxItems": 0 } } }
+    },
+    "template": {
+      "type": "object", "additionalProperties": false,
+      "required": ["$schema", "kind", "schemaVersion", "templateId", "templateVersion", "status", "label", "instructions", "controllerModelId", "requiredCapabilities", "sources", "citations", "destinations", "switches"],
+      "properties": {
+        "$schema": { "const": "./catalog.schema.json" }, "kind": { "const": "controller-template" }, "schemaVersion": { "const": 1 },
+        "templateId": { "$ref": "#/$defs/id" }, "templateVersion": { "$ref": "#/$defs/version" }, "status": { "const": "proposal" },
+        "label": { "$ref": "#/$defs/label" }, "instructions": { "$ref": "#/$defs/label" }, "controllerModelId": { "$ref": "#/$defs/id" },
+        "requiredCapabilities": { "$ref": "#/$defs/ids" }, "sources": { "$ref": "#/$defs/sources" }, "citations": { "$ref": "#/$defs/citations" },
+        "destinations": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/destination" } },
+        "switches": { "type": "object", "minProperties": 1, "maxProperties": 4, "propertyNames": { "enum": ["A", "B", "C", "D"] }, "additionalProperties": { "$ref": "#/$defs/switch" } }
+      }
+    }
+  }
+}

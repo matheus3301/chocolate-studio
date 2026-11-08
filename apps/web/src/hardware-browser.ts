@@ -4,7 +4,7 @@ import type { Transport } from '@chocolate-studio/chocolate';
 import { studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
 import { decodeFcp } from '@chocolate-studio/chocolate-layout';
-import type { DeviceIdentity, DeviceRead, HardwareEvent, HardwareService, HardwareSnapshot, PortSelection, RawBackup, VerifiedDeviceRead, WritePreview } from './hardware';
+import type { DeviceIdentity, DeviceRead, HardwareEvent, HardwareService, HardwareSnapshot, OriginalBackupConfirmation, PortSelection, RawBackup, VerifiedDeviceRead, WritePreview } from './hardware';
 import { HARDWARE_HISTORY_LIMIT } from './hardware';
 import { configurationFromBytes, configurationToBytes } from './hardware-mapping';
 
@@ -17,7 +17,7 @@ const equal = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every
 const hash = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(bytes).buffer)), b => b.toString(16).padStart(2, '0')).join('');
 const fail = (code: string): never => { throw new Error(code); };
 function errorKey(error: unknown): string {
-  if (error instanceof Error && error.message.startsWith('hardware.')) return error.message;
+  if (error instanceof Error && (error.message.startsWith('hardware.') || error.message.startsWith('connection:'))) return error.message;
   if (error instanceof ChocolateError) {
     const keys: Record<string, string> = { TIMEOUT: 'hardware.timeout', DEVICE_REJECTED: 'hardware.deviceRejected',
       VERIFICATION_MISMATCH: 'hardware.verifyMismatch', SESSION_DESYNCHRONIZED: 'hardware.reconnect',
@@ -34,6 +34,7 @@ export function createBrowserHardware(): HardwareService {
     status: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator ? 'disconnected' : 'unavailable',
     reason: null, inputs: [], outputs: [], selection: null, identity: null,
     capabilities: disabled, observed: null, verified: null, baseline: null, history: [],
+    connectionEpoch: 0, backupSafety: null,
   };
   const subscribers = new Set<() => void>();
   let access: MIDIAccess | undefined;
@@ -46,6 +47,7 @@ export function createBrowserHardware(): HardwareService {
   let abort = new AbortController();
   let baseline: RawBackup | null = null;
   let observed: DeviceRead | null = null;
+  let backupSafety: OriginalBackupConfirmation | null = null;
   let pending: { preview: WritePreview; bytes: Uint8Array; baseline: Uint8Array; epoch: number } | null = null;
 
   function publish(patch: Partial<HardwareSnapshot>) {
@@ -68,8 +70,9 @@ export function createBrowserHardware(): HardwareService {
     cleanupTransport?.(); cleanupTransport = undefined;
     const closing = [input, output]; input = undefined; output = undefined;
     observed = null; baseline = null;
+    backupSafety = null;
     publish({ status: 'disconnected', selection: null, identity: null, capabilities: disabled,
-      observed: null, verified: null, baseline: null, reason: null });
+      observed: null, verified: null, baseline: null, reason: null, connectionEpoch: epoch, backupSafety: null });
     await Promise.allSettled(closing.map(p => p?.close()));
   }
   async function operation<T>(fn: (session: ProtocolSession, generation: number) => Promise<T>): Promise<T> {
@@ -97,11 +100,14 @@ export function createBrowserHardware(): HardwareService {
     const mapped = configurationFromBytes(bytes, metadata);
     const rawBackup: RawBackup = { id: crypto.randomUUID(), bytes: bytes.slice(), sha256: await hash(bytes),
       capturedAt: Date.now(), identity: clone(identity) };
-    return { configuration: mapped.configuration, warnings: mapped.warnings, rawBackup, readAt: Date.now() };
+    return { configuration: mapped.configuration, warnings: mapped.warnings, controller: mapped.controller, rawBackup, readAt: Date.now() };
   }
   function acceptRead(read: DeviceRead, verified?: VerifiedDeviceRead) {
     observed = clone(read); baseline ??= clone(read.rawBackup);
     publish({ observed: clone(read), baseline: clone(baseline), verified: verified ? clone(verified) : null });
+  }
+  function backupReady(): boolean {
+    return baseline !== null && backupSafety?.baselineId === baseline.id && backupSafety.sha256 === baseline.sha256;
   }
   async function applyBytes(session: ProtocolSession, before: Uint8Array, after: Uint8Array, generation: number) {
     // CubeSuite rewrites this whole advanced-bank region after message edits.
@@ -212,6 +218,13 @@ export function createBrowserHardware(): HardwareService {
         acceptRead(read); event('read', 'hardware.readComplete'); return clone(read);
       });
     },
+    async acknowledgeBackup(confirmation) {
+      if (!protocol || !baseline || !observed ||
+          confirmation.baselineId !== baseline.id || confirmation.sha256 !== baseline.sha256 ||
+          (confirmation.method !== 'stored' && confirmation.method !== 'downloaded')) return fail('connection:backupRequired');
+      backupSafety = clone(confirmation);
+      publish({ backupSafety: clone(backupSafety) });
+    },
     async preview(configuration) {
       if (busy) return fail('hardware.busy');
       if (!protocol || !observed) return fail('hardware.readFirst');
@@ -228,6 +241,7 @@ export function createBrowserHardware(): HardwareService {
       const plan = pending;
       if (!plan || plan.preview.id !== previewId || plan.epoch !== epoch) return Promise.reject(new Error('hardware.expiredPreview'));
       if (plan.preview.unsupported.length) return Promise.reject(new Error('hardware.unsupportedConfiguration'));
+      if (!backupReady()) return Promise.reject(new Error('connection:backupRequired'));
       pending = null;
       return operation(async (session, generation) => {
         const current = (await session.readConfiguration({ signal: abort.signal })).snapshot.toUint8Array();
@@ -242,6 +256,7 @@ export function createBrowserHardware(): HardwareService {
     },
     restore(backup) {
       const owned = clone(backup);
+      if (!backupReady()) return Promise.reject(new Error('connection:backupRequired'));
       return operation(async (session, generation) => {
         pending = null;
         if (owned.bytes.length !== CONFIG_SIZE || await hash(owned.bytes) !== owned.sha256) return fail('hardware.invalidBackup');

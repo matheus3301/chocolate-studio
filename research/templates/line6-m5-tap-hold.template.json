@@ -1,0 +1,75 @@
+{
+  "$schema": "./catalog.schema.json",
+  "kind": "controller-template",
+  "schemaVersion": 1,
+  "templateId": "line6-m5-tap-hold",
+  "templateVersion": "0.1.0",
+  "status": "proposal",
+  "label": {
+    "en": "A: tap for preset 1, hold for preset 2",
+    "pt-BR": "A: toque para preset 1, segure para preset 2"
+  },
+  "instructions": {
+    "en": "Draft only: confirm the named M5 channel and DIN route. Require separately qualified exclusive short/hold behavior on the connected Chocolate mode/firmware. Only A is assigned; preserve B/C/D and opaque data. Readback verifies storage, not stomps or M5 output. Channel 1 is an editable suggestion, not a detected setting.",
+    "pt-BR": "Somente rascunho: confirme o canal do M5 nomeado e a rota DIN. Exija comportamento exclusivo de toque curto/segurar qualificado separadamente no modo/firmware do Chocolate conectado. Só A é atribuído; preserve B/C/D e dados opacos. Releitura verifica armazenamento, não pisadas nem saída no M5. Canal 1 é uma sugestão editável, não uma configuração detectada."
+  },
+  "controllerModelId": "m-vave.chocolate-plus",
+  "requiredCapabilities": [
+    "midi.pc",
+    "gesture.short-long-exclusive"
+  ],
+  "sources": [
+    {
+      "id": "chocolate-plus-user-manual-26.1.8",
+      "publisher": "GOODS FIRST LTD. / M-VAVE",
+      "title": "Chocolate Plus User Manual",
+      "revision": "26.1.8 in source filename; firmware not identified",
+      "url": "https://img1.wsimg.com/blobby/go/65f9cd9e-befb-4162-8b92-925533045e36/downloads/84a00f95-de78-441b-ab2f-017725a68e2f/Chocolate%20plus%20user%20manual26.1.8.pdf?ver=1776996614767",
+      "sha256": "442a0cdfc4b1c010ef4f1c3ac77dfcf937e3d38f33f665f7727df395e9f04cca"
+    }
+  ],
+  "citations": [
+    {
+      "sourceId": "chocolate-plus-user-manual-26.1.8",
+      "pdfPages": [
+        4
+      ],
+      "section": "Advanced Custom Mode / Step short or step long; eight groups; E/F bank switching excluded"
+    }
+  ],
+  "destinations": [
+    {
+      "instanceId": "m5-main",
+      "modelId": "line6.m5",
+      "profileVersion": "0.1.0",
+      "name": {
+        "en": "My M5",
+        "pt-BR": "Meu M5"
+      },
+      "channel": 1
+    }
+  ],
+  "switches": {
+    "A": {
+      "behavior": "shortLong",
+      "primary": [
+        {
+          "destinationInstanceId": "m5-main",
+          "actionId": "select-preset",
+          "parameters": {
+            "preset-number": 1
+          }
+        }
+      ],
+      "secondary": [
+        {
+          "destinationInstanceId": "m5-main",
+          "actionId": "select-preset",
+          "parameters": {
+            "preset-number": 2
+          }
+        }
+      ]
+    }
+  }
+}

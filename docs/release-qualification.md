@@ -1,6 +1,6 @@
 # Beta qualification
 
-Release: `0.1.0-beta.3`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
+Release: `0.1.0-beta.4`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
 
 | Capability | Evidence and boundary |
 | --- | --- |
@@ -15,6 +15,16 @@ Release: `0.1.0-beta.3`. Tests performed 2026-11-07/08 on macOS 26.6.2. The cont
 | Factory reset / firmware update | Unsupported. No guessed reset or flashing command. |
 
 The baseline remains private. Its SHA-256 is `6d45d5b2655f363f892bda52bfd3ca56e5ae69188cba0bd29a110f5d13ed21b7`. A final independent read-only pass matched that original image exactly after the experiments. Proprietary executables/disassembly, personal configuration bytes, raw private traces and credentials are excluded from Git and runtime assets.
+
+## Guided configuration (beta.4)
+
+The connection wizard reads and preserves the complete original before edits. Equipment profiles supply bilingual musical actions and parameters; the generic editor supports tap/hold, with raw MIDI behind Advanced. JSON v2 preserves the selected profile/action alongside deterministic MIDI; v1 imports remain supported. Local editing, device verification and user-reported physical results are separate.
+
+206 tests, strict typecheck and production build passed. Browser checks covered PT/EN, the M5 preset1/preset2 example, local save/export and 390px and 320px mobile viewports without horizontal overflow. The current main JS bundle is 642.47 kB (194.62 kB gzip); Vite reports its >500 kB advisory, retained as a performance follow-up.
+
+The [guided hardware experiment](../research/experiments/005-guided-actions-roundtrip.md) passed actual Chrome write/full-reread/restore. The final independent read matched the original SHA-256 and mode0. Physical footpress output and the receiving equipment response remain unverified.
+
+The local production image built with fresh base pulls and ran healthy as UID/GID101:101, read-only with only `/tmp` writable. Size 13,861,949 bytes (+88,412 from beta3); production dependency audit reported no known vulnerabilities. Neither Trivy nor Docker Scout was available locally, so no image vulnerability scan is claimed.
 
 ## Controller illustration (beta.3)
 

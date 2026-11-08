@@ -1,0 +1,618 @@
+[
+  {
+    "kind": "destination-profile",
+    "schemaVersion": 1,
+    "profileVersion": "0.1.0",
+    "modelId": "line6.m5",
+    "manufacturer": "Line 6",
+    "model": "M5 Stompbox Modeler",
+    "label": {
+      "en": "Line 6 M5",
+      "pt-BR": "Line 6 M5"
+    },
+    "sources": [
+      {
+        "id": "line6-m5-pilot-rev-a",
+        "publisher": "Line 6",
+        "title": "M5 Stompbox Modeler Pilot’s Handbook",
+        "revision": "A; 40-00-0292",
+        "url": "https://line6.com/data/6/0a060b316ac34f0593fa7e002/application/pdf/M5%20Pilot",
+        "sha256": "e4d03620ca9b9d697e95e0a163453744d5d7f6d7a63c18ba80977463e1f16536"
+      }
+    ],
+    "connection": {
+      "midiInputs": [
+        "din5"
+      ],
+      "midiOutputs": [
+        "din5"
+      ],
+      "directUsbMidi": false,
+      "instructions": {
+        "en": "The route must end at M5 MIDI IN through a DIN MIDI output and cable. The M5 has no direct USB MIDI connection; USB belongs to a separate MIDI interface. Confirm the actual controller/adapter route. Reading Chocolate does not verify M5 response.",
+        "pt-BR": "A rota deve terminar no MIDI IN do M5, por uma saída MIDI DIN e cabo. O M5 não tem conexão USB MIDI direta; o USB é de uma interface MIDI separada. Confirme a rota real do controlador/adaptador. Ler o Chocolate não verifica a resposta do M5."
+      },
+      "citations": [
+        {
+          "sourceId": "line6-m5-pilot-rev-a",
+          "pdfPages": [
+            4,
+            7
+          ],
+          "section": "Rear Connections / MIDI In/Out; Firmware Update Instructions / external MIDI interface"
+        }
+      ]
+    },
+    "setup": [
+      {
+        "id": "midi-channel",
+        "label": {
+          "en": "Match the MIDI channel",
+          "pt-BR": "Igualar o canal MIDI"
+        },
+        "instructions": {
+          "en": "On M5, hold TAP and press MODEL SELECT for Setup; press MODEL SELECT for page 2, then set the bottom-left knob to your channel. Use the same explicit channel 1–16 on the named destination. Factory default is 1, not a detected value. Omni is a receiver mode, not a transmitting channel.",
+          "pt-BR": "No M5, segure TAP e pressione MODEL SELECT para abrir Setup; pressione MODEL SELECT para a página 2 e ajuste o botão inferior esquerdo para seu canal. Use o mesmo canal explícito 1–16 no destino nomeado. O padrão de fábrica é 1, não um valor detectado. Omni é um modo de recepção, não um canal de transmissão."
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              6,
+              8
+            ],
+            "section": "Additional Setup (Page 2) / MIDI; MIDI Control"
+          }
+        ]
+      },
+      {
+        "id": "expression-endpoints",
+        "label": {
+          "en": "Set expression endpoints on each preset",
+          "pt-BR": "Definir extremos da expressão em cada preset"
+        },
+        "instructions": {
+          "en": "Configure toe and heel parameter settings locally with a compatible expression pedal, then save according to the M5 Manual/Auto Save setting. Assignments are per preset. CC1 moves that assigned position, not an arbitrary parameter. Fixed switch values do not provide continuous pedal movement. Tap-tempo-controlled parameters are unaffected by expression.",
+          "pt-BR": "Configure os parâmetros nas posições ponta e calcanhar no próprio M5, com pedal de expressão compatível, e salve conforme Manual/Auto Save. As atribuições são por preset. CC1 move essa posição atribuída, não um parâmetro arbitrário. Valores fixos em botões não geram movimento contínuo de pedal. Parâmetros controlados por tap tempo não são afetados pela expressão."
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              5,
+              6,
+              7,
+              8
+            ],
+            "section": "Using an Expression Pedal; Basic Operation / TAP; Manual / Auto Save"
+          }
+        ]
+      },
+      {
+        "id": "tap-tempo-effect",
+        "label": {
+          "en": "Enable tap tempo in the effect",
+          "pt-BR": "Ativar tap tempo no efeito"
+        },
+        "instructions": {
+          "en": "Use a tap-tempo-enabled effect and its tap-tempo parameter mode. Two or more taps establish tempo. Supported for all delay effects, most modulation effects, and some filter effects. This is not an absolute BPM command.",
+          "pt-BR": "Use um efeito compatível e seu modo de parâmetro por tap tempo. Dois ou mais toques estabelecem o tempo. Disponível em todos os delays, na maioria das modulações e em alguns filtros. Não é um comando de BPM absoluto."
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              5,
+              8
+            ],
+            "section": "Basic Operation / TAP; MIDI Control / Tap Tempo"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "select-preset",
+        "label": {
+          "en": "Select preset",
+          "pt-BR": "Selecionar preset"
+        },
+        "description": {
+          "en": "Recall one of the 24 saved sounds.",
+          "pt-BR": "Selecione um dos 24 timbres salvos."
+        },
+        "parameters": {
+          "preset-number": {
+            "type": "integer",
+            "label": {
+              "en": "Preset number",
+              "pt-BR": "Número do preset"
+            },
+            "minimum": 1,
+            "maximum": 24,
+            "initial": 1
+          }
+        },
+        "messages": [
+          {
+            "type": "pc",
+            "channel": "destination",
+            "program": {
+              "parameter": "preset-number",
+              "offset": -1
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.pc"
+          ],
+          "setupIds": [
+            "midi-channel"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / Preset Change (PC 0–23 = Presets 01–24)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "tap-tempo",
+        "label": {
+          "en": "Tap tempo",
+          "pt-BR": "Marcar tempo"
+        },
+        "description": {
+          "en": "Tap along to set the effect’s tempo.",
+          "pt-BR": "Toque no ritmo para definir o tempo do efeito."
+        },
+        "parameters": {},
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 64,
+            "value": {
+              "constant": 127
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel",
+            "tap-tempo-effect"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / Tap Tempo (CC64, 64–127)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "effect-off",
+        "label": {
+          "en": "Turn effect off",
+          "pt-BR": "Desligar efeito"
+        },
+        "description": {
+          "en": "Bypass the current effect.",
+          "pt-BR": "Desative o efeito atual."
+        },
+        "parameters": {},
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 11,
+            "value": {
+              "constant": 0
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / FX on/off (CC11, 0–63 Bypass)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "effect-on",
+        "label": {
+          "en": "Turn effect on",
+          "pt-BR": "Ligar efeito"
+        },
+        "description": {
+          "en": "Turn on the current effect.",
+          "pt-BR": "Ative o efeito atual."
+        },
+        "parameters": {},
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 11,
+            "value": {
+              "constant": 127
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / FX on/off (CC11, 64–127 On)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "expression-position",
+        "label": {
+          "en": "Set expression position",
+          "pt-BR": "Definir posição de expressão"
+        },
+        "description": {
+          "en": "Use the expression settings assigned in the current preset.",
+          "pt-BR": "Use os ajustes de expressão atribuídos ao preset atual."
+        },
+        "parameters": {
+          "position": {
+            "type": "integer",
+            "label": {
+              "en": "Expression position",
+              "pt-BR": "Posição da expressão"
+            },
+            "minimum": 0,
+            "maximum": 127,
+            "initial": 0
+          }
+        },
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 1,
+            "value": {
+              "parameter": "position",
+              "offset": 0
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel",
+            "expression-endpoints"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / Expression Pedal (CC01, 0–127)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "tuner-exit",
+        "label": {
+          "en": "Exit tuner",
+          "pt-BR": "Sair do afinador"
+        },
+        "description": {
+          "en": "Close the tuner.",
+          "pt-BR": "Feche o afinador."
+        },
+        "parameters": {},
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 69,
+            "value": {
+              "constant": 0
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / Tuner Mode on/off (CC69, 0–63 Exit)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      },
+      {
+        "id": "tuner-enter",
+        "label": {
+          "en": "Enter tuner",
+          "pt-BR": "Entrar no afinador"
+        },
+        "description": {
+          "en": "Open the tuner.",
+          "pt-BR": "Abra o afinador."
+        },
+        "parameters": {},
+        "messages": [
+          {
+            "type": "cc",
+            "channel": "destination",
+            "controller": 69,
+            "value": {
+              "constant": 127
+            }
+          }
+        ],
+        "requirements": {
+          "capabilities": [
+            "midi.cc"
+          ],
+          "setupIds": [
+            "midi-channel"
+          ]
+        },
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables / Tuner Mode on/off (CC69, 64–127 Enter)"
+          }
+        ],
+        "hardwareVerification": {
+          "status": "not-tested"
+        }
+      }
+    ],
+    "unavailable": [
+      {
+        "id": "midi-clock-sync",
+        "label": {
+          "en": "Sync with MIDI clock",
+          "pt-BR": "Sincronizar com MIDI clock"
+        },
+        "reason": "outside-pc-cc-design",
+        "description": {
+          "en": "The M5 accepts incoming MIDI Beat Clock for tap-tempo-enabled effects. This is not PC/CC, and this catalog supplies no clock generator, routing, or binding. A controller clock-output capability must be separately qualified.",
+          "pt-BR": "O M5 aceita MIDI Beat Clock recebido para efeitos com tap tempo. Não é PC/CC, e este catálogo não fornece gerador, roteamento nem vínculo de clock. A capacidade de saída de clock do controlador deve ser qualificada separadamente."
+        },
+        "requiredCapabilities": [
+          "midi.clock-output"
+        ],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables"
+          }
+        ]
+      },
+      {
+        "id": "preset-sysex",
+        "label": {
+          "en": "Back up or restore M5 sounds",
+          "pt-BR": "Copiar ou restaurar timbres do M5"
+        },
+        "reason": "outside-pc-cc-design",
+        "description": {
+          "en": "The manual documents MIDI SysEx dump/restore, but this PC/CC proposal has no SysEx format or implementation. M5 audio presets are not Chocolate FCP or Studio JSON.",
+          "pt-BR": "O manual documenta cópia/restauração por MIDI SysEx, mas esta proposta PC/CC não tem formato nem implementação SysEx. Presets de áudio do M5 não são FCP do Chocolate nem JSON do Studio."
+        },
+        "requiredCapabilities": [
+          "midi.sysex-output"
+        ],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              6
+            ],
+            "section": "Additional Setup (Page 2) / MIDI"
+          }
+        ]
+      },
+      {
+        "id": "parameter-specific-cc",
+        "label": {
+          "en": "Control any effect parameter directly",
+          "pt-BR": "Controlar qualquer parâmetro diretamente"
+        },
+        "reason": "not-documented",
+        "description": {
+          "en": "No per-parameter CC or MIDI-learn assignment is documented in the cited MIDI table. CC1 instead uses expression endpoints already configured per preset.",
+          "pt-BR": "A tabela MIDI citada não documenta CC por parâmetro nem atribuição por MIDI Learn. CC1 usa os extremos de expressão já configurados em cada preset."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables"
+          }
+        ]
+      },
+      {
+        "id": "bank-select",
+        "label": {
+          "en": "Select an M5 preset bank",
+          "pt-BR": "Selecionar banco de presets do M5"
+        },
+        "reason": "not-documented",
+        "description": {
+          "en": "The table documents only 24 absolute preset slots via PC0–23, not CC0/CC32 bank selection. Controller groups are not M5 banks.",
+          "pt-BR": "A tabela documenta apenas 24 posições absolutas de preset por PC0–23, não seleção de banco CC0/CC32. Grupos do controlador não são bancos do M5."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables"
+          }
+        ]
+      },
+      {
+        "id": "relative-preset-change",
+        "label": {
+          "en": "Next or previous preset",
+          "pt-BR": "Preset seguinte ou anterior"
+        },
+        "reason": "not-documented",
+        "description": {
+          "en": "No dedicated relative preset-change command is documented here. An editor-side counter would be an assumption about current state, not M5 feedback.",
+          "pt-BR": "Não há comando específico de mudança relativa de preset documentado aqui. Um contador no editor seria uma suposição sobre o estado atual, não retorno do M5."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables"
+          }
+        ]
+      },
+      {
+        "id": "read-current-state",
+        "label": {
+          "en": "Read current preset or effect state",
+          "pt-BR": "Ler preset ou estado atual do efeito"
+        },
+        "reason": "not-documented",
+        "description": {
+          "en": "The cited table supplies no query/response for current preset, bypass, or tuner state. Chocolate configuration readback does not supply this information.",
+          "pt-BR": "A tabela citada não fornece consulta/resposta de preset atual, bypass ou afinador. A releitura da configuração do Chocolate não fornece essa informação."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              8
+            ],
+            "section": "MIDI Control / MIDI Reference Tables"
+          }
+        ]
+      },
+      {
+        "id": "remote-save-rename",
+        "label": {
+          "en": "Save or rename an M5 sound",
+          "pt-BR": "Salvar ou renomear timbre do M5"
+        },
+        "reason": "not-documented",
+        "description": {
+          "en": "Local save/rename is documented, not a PC/CC remote-save command. A preset label in Studio is only a local reference.",
+          "pt-BR": "Salvar/renomear localmente é documentado, não um comando PC/CC de gravação remota. O nome de preset no Studio é apenas uma referência local."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              5,
+              6
+            ],
+            "section": "Saving, Naming & Arranging Presets; Manual / Auto Save"
+          }
+        ]
+      },
+      {
+        "id": "firmware-reset",
+        "label": {
+          "en": "Update firmware or factory reset",
+          "pt-BR": "Atualizar firmware ou restaurar fábrica"
+        },
+        "reason": "outside-pc-cc-design",
+        "description": {
+          "en": "These are separate service/local procedures, not template actions. Do not offer them as a connection-recovery step.",
+          "pt-BR": "São procedimentos locais/de manutenção separados, não ações de template. Não os ofereça como recuperação de conexão."
+        },
+        "requiredCapabilities": [],
+        "citations": [
+          {
+            "sourceId": "line6-m5-pilot-rev-a",
+            "pdfPages": [
+              7
+            ],
+            "section": "Factory Reset; Firmware Update Instructions"
+          }
+        ]
+      }
+    ]
+  }
+]

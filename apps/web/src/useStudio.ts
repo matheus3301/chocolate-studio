@@ -130,19 +130,20 @@ export function useStudio() {
     } catch { if (generation === importGeneration.current) setNotice('fileReadError'); }
   }
 
-  async function replaceDraft() {
-    if (!incoming || !persistent || !saved) return;
-    try { validConfiguration(configuration); } catch { setNotice('invalidDraft'); return; }
+  async function replaceDraft(next = incoming): Promise<boolean> {
+    if (!next || !persistent || !saved) return false;
+    try { validConfiguration(configuration); validConfiguration(next); } catch { setNotice('invalidDraft'); return false; }
     setBusy(true);
     try {
-      const draft = await database.replace(configuration, incoming, saved.revision, t('beforeReplacement'));
+      const draft = await database.replace(configuration, next, saved.revision, t('beforeReplacement'));
       setConfiguration(draft.configuration);
       setSaved(draft);
       setIncoming(null);
       setNotice(null);
       setBackups(await database.backups.orderBy('createdAt').reverse().toArray());
       record('eventReplaced');
-    } catch (error) { report(error, 'storageError'); }
+      return true;
+    } catch (error) { report(error, 'storageError'); return false; }
     finally { setBusy(false); }
   }
 

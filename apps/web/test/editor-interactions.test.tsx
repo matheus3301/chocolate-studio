@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIGURATION_LIMITS, SWITCH_IDS, exportConfiguration, studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
+import { shellEn, shellPt } from '../src/shell-i18n.js';
 import { App } from '../src/App.js';
 import { initialConfiguration, sameConfiguration, setMessages } from '../src/editor.js';
 import { en, i18n, initializeLanguage, pt } from '../src/i18n.js';
@@ -16,12 +17,20 @@ import type { HardwareService, HardwareSnapshot } from '../src/hardware.js';
 function pendingFile(text: Promise<string>): File {
   return { size: 100, text: () => text } as File;
 }
-async function ready(configuration = initialConfiguration('en'), hardware?: HardwareService) {
+async function ready(configuration = initialConfiguration('en'), hardware?: HardwareService, advanced = true) {
   await database.initialize(configuration);
   const rendered = render(<App {...(hardware ? { hardware } : {})} />);
   await waitFor(() => expect((screen.getByLabelText(i18n.t('projectName')) as HTMLInputElement).disabled).toBe(false));
+  if (advanced) {
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('flowContinue', { ns: 'shell' }) }));
+    fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
+  }
   return rendered;
 }
+function openFiles() { const summary = screen.getByText(i18n.t('flowFiles', { ns: 'shell' }), { selector: 'summary' }); if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary); }
+function openTools() { const summary = screen.getByText(i18n.t('flowUtilities', { ns: 'shell' }), { selector: 'summary' }); if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary); }
+function saveButton() { openFiles(); return screen.getByRole('button', { name: i18n.t('flowLocalSave', { ns: 'shell' }) }); }
+
 function fullConfiguration(): StudioConfiguration {
   const configuration = initialConfiguration('en');
   const first = configuration.groups[0]!;
@@ -64,7 +73,7 @@ it('blocks name edits during initial loading and saving, then permits editing af
   const saving = Promise.withResolvers<void>();
   const save = database.save.bind(database);
   vi.spyOn(database, 'save').mockImplementation(async (configuration, revision) => { await saving.promise; return save(configuration, revision); });
-  await user.click(screen.getByRole('button', { name: en.save }));
+  await user.click(saveButton());
   expect(name.disabled).toBe(true);
   await user.type(name, 'lost while saving');
   expect(name.value).toBe('Clean set');
@@ -115,13 +124,14 @@ describe('aggregate message capacity', () => {
       fireEvent.click(screen.getByText(en.groupName, { selector: 'summary' }));
       fireEvent.click(screen.getByRole('button', { name: en.duplicateGroup }));
     } else {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.presets}`) }));
+      openTools(); fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.presets}`) }));
       fireEvent.click(screen.getByRole('button', { name: en.usePreset }));
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.usePreset }));
-      fireEvent.click(screen.getByRole('button', { name: en.board }));
+      fireEvent.click(screen.getByRole('button', { name: shellEn.flowBack }));
+      fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
     }
     expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
-    expect((screen.getByRole('button', { name: en.save }) as HTMLButtonElement).disabled).toBe(true);
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('button', { name: en.secondary }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(en.noMessages)).toBeTruthy();
   });
@@ -178,7 +188,7 @@ it('rejects JSON byte overflow and restores accepted numeric/name displays at th
   fireEvent.change(name, { target: { value: 'é'.repeat(128) } });
   fireEvent.blur(name);
   expect(name.value).toBe(configuration.name);
-  expect((screen.getByRole('button', { name: en.save }) as HTMLButtonElement).disabled).toBe(true);
+  expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
   const persisted = (await database.drafts.get('current'))!.configuration;
   expect(persisted.groups[0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
   expect(persisted.groups[0]!.switches.A.secondaryMessages).toBeUndefined();
@@ -194,8 +204,8 @@ it('returns to Bank A after removing the selected additional gesture and adds su
   expect(screen.queryByLabelText(en.additionalGesture)).toBeNull();
   expect(screen.getByRole('button', { name: en.primary }).getAttribute('aria-pressed')).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: en.addCc }));
-  fireEvent.click(screen.getByRole('button', { name: en.save }));
-  await waitFor(() => expect((screen.getByRole('button', { name: en.save }) as HTMLButtonElement).disabled).toBe(true));
+  fireEvent.click(saveButton());
+  await waitFor(() => expect((saveButton() as HTMLButtonElement).disabled).toBe(true));
   const actions = (await database.drafts.get('current'))!.configuration.groups[0]!.switches.A.actions;
   expect(actions.map((action) => action.gesture)).toEqual(['press']);
   expect(actions[0]!.messages.map((message) => message.type)).toEqual(['pc', 'cc']);
@@ -216,61 +226,42 @@ it.each(['en', 'pt-BR'] as const)('names actual confirmation actions in %s and p
   fireEvent.click(screen.getByRole('button', { name: copy.removeGroup }));
   let dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.cancel }));
-  expect(screen.getByRole('button', { name: /Second group$/ })).toBeTruthy();
+  expect(screen.getByRole('option', { name: 'Second group' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: copy.removeGroup }));
   dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.removeGroup }));
-  fireEvent.click(screen.getByRole('button', { name: copy.backups }));
+  openFiles(); fireEvent.click(screen.getByRole('button', { name: copy.backups }));
   fireEvent.click(screen.getByRole('button', { name: copy.delete }));
   dialog = screen.getByRole('dialog');
   expect(await database.backups.count()).toBe(1);
   fireEvent.click(within(dialog).getByRole('button', { name: copy.delete }));
   await waitFor(async () => expect(await database.backups.count()).toBe(0));
   await waitFor(() => expect((screen.getByLabelText(copy.projectName) as HTMLInputElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${copy.presets}`) }));
+  openTools(); fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${copy.presets}`) }));
   fireEvent.click(screen.getByRole('button', { name: copy.usePreset }));
   dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.usePreset }));
-  fireEvent.click(screen.getByRole('button', { name: copy.save }));
-  await waitFor(() => expect((screen.getByRole('button', { name: copy.save }) as HTMLButtonElement).disabled).toBe(true));
+  fireEvent.click(saveButton());
+  await waitFor(() => expect((saveButton() as HTMLButtonElement).disabled).toBe(true));
   const stored = (await database.drafts.get('current'))!.configuration;
   expect(stored.groups.map((group) => group.id)).toEqual(['group-2']);
   expect(stored.groups[0]!.switches.A.actions[0]!.messages[0]).toEqual({ type: 'pc', channel: 2, program: 99 });
 });
 
-it.each(['en', 'pt-BR'] as const)('keeps file proxies out of keyboard navigation and connects the header shortcut in %s', async (locale) => {
+it.each(['en', 'pt-BR'] as const)('keeps file proxies out of keyboard navigation and opens the connection step in %s', async (locale) => {
   await i18n.changeLanguage(locale);
   const copy = locale === 'en' ? en : pt;
+  const shell = locale === 'en' ? shellEn : shellPt;
   await ready(initialConfiguration(locale));
   const user = userEvent.setup();
   fireEvent.change(screen.getByLabelText(copy.projectName), { target: { value: 'Keyboard set' } });
   const jsonInput = screen.getByLabelText(copy.import) as HTMLInputElement;
-  screen.getByRole('button', { name: copy.save }).focus();
+  saveButton().focus();
   await user.tab();
   expect(document.activeElement).not.toBe(jsonInput);
-  fireEvent.click(screen.getByText(copy.rawBackup, { selector: 'summary' }));
-  const rawInput = screen.getByLabelText(copy.importRaw) as HTMLInputElement;
-  screen.getByRole('button', { name: copy.importRaw }).focus();
-  await user.tab();
-  expect(document.activeElement).not.toBe(rawInput);
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: copy.clear }));
-  screen.getByRole('link', { name: copy.connectPedal }).focus();
-  await user.keyboard('{Enter}');
-  expect(document.activeElement).toBe(document.getElementById('hardware-panel'));
-});
-
-it.each(['en', 'pt-BR'] as const)('explains a pending MIDI permission request in %s and removes the hint after it settles', async (locale) => {
-  await i18n.changeLanguage(locale);
-  const copy = locale === 'en' ? en : pt;
-  let snapshot: HardwareSnapshot = { ...unavailableHardware.getSnapshot(), status: 'requesting' };
-  const hardware: HardwareService = { ...unavailableHardware, getSnapshot: () => snapshot };
-  const rendered = await ready(initialConfiguration(locale), hardware);
-  expect(screen.getByText(copy['hardware.requestingPermission']).getAttribute('role')).toBe('status');
-  expect((screen.getByRole('button', { name: copy.requestPorts }) as HTMLButtonElement).disabled).toBe(true);
-  snapshot = { ...snapshot, status: 'disconnected' };
-  rendered.rerender(<App hardware={hardware} />);
-  expect(screen.queryByText(copy['hardware.requestingPermission'])).toBeNull();
-  expect((screen.getByRole('button', { name: copy.requestPorts }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: copy.connectPedal }));
+  expect(screen.getByRole('button', { name: shell.flowContinue })).toBeTruthy();
+  expect(document.activeElement).toBe(document.getElementById('workspace'));
 });
 
 it('treats parsed key order as saved while preserving later edits during an asynchronous save', async () => {
