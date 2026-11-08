@@ -42,6 +42,13 @@ state. UI has explicit confirmation; it never calls factory reset. Failure remai
 failure even if some bytes may have been sent: retain recovery information and
 report the device's uncertain state.
 
+`RawBackup.source` is optional for existing device backups and may be `file` for
+imported FCP. Files have no identity signature: their identity fields are unknown,
+not copied from the filename or connected device. The UI accepts exactly 23646
+bytes and explicitly warns that restore targets the connected Chocolate Plus.
+The real adapter must still validate full FCP layout, SHA256 and the qualified
+target. Device-origin backups retain strict identity matching.
+
 `history` is oldest first, max `HARDWARE_HISTORY_LIMIT` (200). Limit byte arrays per
 MIDI event as appropriate; do not retain full configuration dumps in monitor text.
 `clearHistory` publishes a new snapshot. UI combines these real events with bounded
