@@ -407,6 +407,7 @@ main.guided-content[tabindex='-1']:focus { outline: none; }
 .mode-review-fields > div { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
 .mode-review-fields dt { color: var(--muted); }
 .mode-review-fields dd { margin: 0; font-variant-numeric: tabular-nums; }
+.preset-target-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .fixed-program-range { font: 24px ui-monospace, monospace; color: var(--amber); font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {
   .guided-topbar { padding: 16px; gap: 12px; }
@@ -425,6 +426,7 @@ main.guided-content[tabindex='-1']:focus { outline: none; }
   .guided-shell main { padding-inline: 12px; }
   .setup-card, .guided-setup.panel, .guided-panel, .connection-step, .mode-editor { padding: 16px; }
   .guided-setup-fields, .mode-settings, .guided-action-fields { grid-template-columns: minmax(0, 1fr); }
+  .preset-target-fields { grid-template-columns: minmax(0, 1fr); }
   .guided-controller .controller-chassis { padding-inline: 4px; }
   .guided-controller .controller-deck { grid-template-columns: repeat(2, minmax(40px, 1fr)) minmax(28px, .6fr) repeat(2, minmax(40px, 1fr)); gap: 4px; }
   .guided-controller .controller-switch { min-width: 40px; }

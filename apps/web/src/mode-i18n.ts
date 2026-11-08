@@ -27,6 +27,8 @@ const en = {
   expression: 'Expression pedal', trsMidi: 'TRS-MIDI', interfaceType: 'External connection type', polarity: 'Polarity reversal',
   expert: 'CubeSuite options', expertHint: 'Original CubeSuite labels. Their physical behavior has not been confirmed.',
   visual: 'VISUAL BEHAVIOR', bankMidi: 'Bank MIDI', cleared: 'Cleared', mixed: 'Mixed mode', keyboardGroup: 'Keyboard group',
+  chooseGroup: 'Choose a group', chooseSwitch: 'Choose a switch', presetLibraryOnly: 'Keep and edit your preset library here. To assign a preset, choose a MIDI-action switch in Custom MIDI actions or Mixed mode.',
+  distinctModifiers: 'Choose different modifiers, or set the second modifier to None.',
 };
 const pt: Record<keyof typeof en, string> = {
   title: 'Como você quer usar seu Chocolate?', intro: 'Mantenha o modo atual ou escolha outra forma de usar os quatro botões.',
@@ -55,6 +57,8 @@ const pt: Record<keyof typeof en, string> = {
   expression: 'Pedal de expressão', trsMidi: 'TRS-MIDI', interfaceType: 'Tipo de conexão externa', polarity: 'Inverter polaridade',
   expert: 'Opções do CubeSuite', expertHint: 'Nomes originais do CubeSuite. O comportamento físico ainda não foi confirmado.',
   visual: 'VISUAL BEHAVIOR', bankMidi: 'Bank MIDI', cleared: 'Removida', mixed: 'Modo misto', keyboardGroup: 'Grupo do teclado',
+  chooseGroup: 'Escolha um grupo', chooseSwitch: 'Escolha um botão', presetLibraryOnly: 'Guarde e edite sua biblioteca de presets aqui. Para atribuir um preset, escolha um botão de ação MIDI no modo Ações MIDI personalizadas ou no modo misto.',
+  distinctModifiers: 'Escolha modificadores diferentes ou deixe o segundo como Nenhuma.',
 };
 
 export function useModeTranslation() {

@@ -1,11 +1,12 @@
 import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CONFIGURATION_LIMITS, SWITCH_IDS } from '@chocolate-studio/midi';
+import { CONFIGURATION_LIMITS, SWITCH_IDS, effectiveControllerMode } from '@chocolate-studio/midi';
 import type { MidiMessage, Preset, StudioConfiguration, SwitchBehavior, SwitchId } from '@chocolate-studio/midi';
 import { applyPreset, destinationIsUsed, editGroup, setMessages } from './editor.js';
 import type { Sequence } from './editor.js';
 import { Empty, Icon, MessageFields, NameField, NumberField } from './components.js';
 import { destinationHasBindings } from './guided-actions.js';
+import { useModeTranslation } from './mode-i18n.js';
 
 interface EditorProps {
   configuration: StudioConfiguration;
@@ -121,16 +122,40 @@ export function Pedalboard(props: EditorProps) {
 export function Presets({ configuration, onChange, groupId, switchId, sequence, confirm }: EditorProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const selected = configuration.groups.find((entry) => entry.id === groupId) ?? configuration.groups[0]!;
+  const { mt } = useModeTranslation();
+  const mode = effectiveControllerMode(configuration);
+  const groups = mode === 3 ? configuration.groups : mode === 11 ? configuration.mixedGroups ?? [] : [];
+  const [targetGroup, setTargetGroup] = useState(mode === 3 ? groupId : '');
+  const [targetSwitch, setTargetSwitch] = useState<SwitchId | ''>(mode === 3 ? switchId : '');
+  const [targetSequence, setTargetSequence] = useState<Sequence>(mode === 3 ? sequence : 'primary');
+  const selected = groups.find(entry => entry.id === targetGroup);
+  const groupIndex = selected ? groups.indexOf(selected) : -1;
+  const canAssign = !!selected && !!targetSwitch && (mode === 3 || mode === 11 &&
+    configuration.controller?.mixedAssignments?.some(entry => entry.groupIndex === groupIndex && entry.switchId === targetSwitch && entry.typeCode === 0));
   const filtered = configuration.presets.filter((preset) => preset.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   function updatePreset(id: string, change: Partial<Preset>) { onChange({ ...configuration, presets: configuration.presets.map((preset) => preset.id === id ? { ...preset, ...change } : preset) }); }
   return <><header className="page-heading"><div><p className="eyebrow">{t('workspace')}</p><h1>{t('presets')}</h1><p>{t('presetHint')}</p></div><button className="primary" disabled={configuration.presets.length >= CONFIGURATION_LIMITS.presets} onClick={() => { const destination = configuration.destinations[0]; onChange({ ...configuration, presets: [...configuration.presets, { id: crypto.randomUUID(), name: t('newPreset'), channel: destination?.channel ?? 1, program: 0, ...(destination ? { destinationId: destination.id } : {}) }] }); }}><Icon name="plus" />{t('addPreset')}</button></header>
-    <p className="assignment-note">{t('presetTarget', { bank: selected.name, pedal: switchId, gesture: t(sequence) })}</p>
+    {groups.length > 0 && <div className="preset-target-fields">
+      <label className="field"><span>{mt('group')}</span><select value={selected?.id ?? ''} onChange={event => setTargetGroup(event.target.value)}><option value="">{mt('chooseGroup')}</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
+      <label className="field"><span>{mt('switch')}</span><select value={targetSwitch} onChange={event => setTargetSwitch(event.target.value as SwitchId | '')}><option value="">{mt('chooseSwitch')}</option>{SWITCH_IDS.map(pedal => <option key={pedal} value={pedal}>{pedal}</option>)}</select></label>
+      <label className="field"><span>{t('sequence')}</span><select value={targetSequence} onChange={event => setTargetSequence(event.target.value as Sequence)}><option value="primary">{t('primary')}</option><option value="secondary">{t('secondary')}</option>{targetSequence !== 'primary' && targetSequence !== 'secondary' && <option value={targetSequence}>{t(targetSequence)}</option>}</select></label>
+    </div>}
+    <p className={canAssign ? 'assignment-note' : 'helper'}>{canAssign ? t('presetTarget', { bank: selected!.name, pedal: targetSwitch, gesture: t(targetSequence) }) : mt('presetLibraryOnly')}</p>
     {configuration.presets.length > 0 && <label className="field search"><span>{t('presetName')}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>}
     {!configuration.presets.length && <Empty title={t('noPresets')} detail={t('noPresetsHint')} />}
     <div className="library-grid">{filtered.map((preset) => <article className="panel preset-card" key={preset.id}><span className="eyebrow">PC {String(preset.program).padStart(3, '0')}</span><NameField label={t('presetName')} value={preset.name} onChange={(name) => updatePreset(preset.id, { name })} />
       <MessageFields message={{ ...preset, type: 'pc' }} destinations={configuration.destinations} onChange={(message) => { if (message.type !== 'pc') return; const { type: _, ...reference } = message; const next: Preset = { ...reference, id: preset.id, name: preset.name }; onChange({ ...configuration, presets: configuration.presets.map((entry) => entry.id === preset.id ? next : entry) }); }} />
-      <div className="button-row"><button className="secondary" onClick={() => confirm(t('confirmPreset'), t('usePreset'), () => onChange(applyPreset(configuration, selected.id, switchId, sequence, preset)))}>{t('usePreset')}<Icon name="arrow" /></button><button className="text-button danger" onClick={() => onChange({ ...configuration, presets: configuration.presets.filter((entry) => entry.id !== preset.id) })}>{t('remove')}</button></div>
+      <div className="button-row"><button className="secondary" disabled={!canAssign} onClick={() => {
+        if (!selected || !targetSwitch || !canAssign) return;
+        confirm(t('confirmPreset'), t('usePreset'), () => {
+          if (mode === 3) onChange(applyPreset(configuration, selected.id, targetSwitch, targetSequence, preset));
+          else {
+            const adapted = { ...configuration, groups, mixedGroups: undefined };
+            const next = applyPreset(adapted, selected.id, targetSwitch, targetSequence, preset);
+            onChange({ ...next, groups: configuration.groups, mixedGroups: next.groups });
+          }
+        });
+      }}>{t('usePreset')}<Icon name="arrow" /></button><button className="text-button danger" onClick={() => onChange({ ...configuration, presets: configuration.presets.filter((entry) => entry.id !== preset.id) })}>{t('remove')}</button></div>
     </article>)}</div></>;
 }
 

@@ -85,17 +85,17 @@ export function ModeEditor({ configuration, onChange, confirm, onPendingChange, 
   const group = Math.min(previewGroup, groupCount - 1);
   const mixed = settings.mixedAssignments?.find(entry => entry.groupIndex === group && entry.switchId === switchId);
   const keyboard = settings.keyboardAssignments?.find(entry => entry.groupIndex === group && entry.switchId === switchId);
-  function change(patch: Partial<ControllerSettings>) {
-    if (onChange({ ...configuration, controller: { ...settings, ...patch } }) === false) { setError(true); return false; }
+  function change(patch: Partial<ControllerSettings>, reportError = true) {
+    if (onChange({ ...configuration, controller: { ...settings, ...patch } }) === false) { setError(reportError); return false; }
     setError(false); return true;
   }
   function navigate(action: () => void) {
     if (!pending) { action(); return; }
     confirm(mt('discard'), mt('discard'), () => { setRevision(value => value + 1); action(); });
   }
-  function changeMixed(patch: Partial<MixedAssignment>) {
+  function changeMixed(patch: Partial<MixedAssignment>, reportError = true) {
     const next: MixedAssignment = { groupIndex: group, switchId, typeCode: mixed?.typeCode ?? 0, ...mixed, ...patch };
-    return change({ mixedAssignments: [...(settings.mixedAssignments ?? []).filter(entry => entry.groupIndex !== group || entry.switchId !== switchId), next] });
+    return change({ mixedAssignments: [...(settings.mixedAssignments ?? []).filter(entry => entry.groupIndex !== group || entry.switchId !== switchId), next] }, reportError);
   }
   const typeChoice = <label className="field mode-type-choice"><span>{mt('buttonUse')}</span><select value={mixed?.typeCode ?? ''} onChange={event => { const value = Number(event.target.value); navigate(() => { changeMixed({ typeCode: value }); }); }}>
     {!mixed && <option value="" disabled>{mt('chooseUse')}</option>}<option value={0}>{mt('midiAction')}</option><option value={1}>{mt('keyboardAction')}</option><option value={2}>{mt('pageAction')}</option>
@@ -111,7 +111,7 @@ export function ModeEditor({ configuration, onChange, confirm, onPendingChange, 
         groupId={mixedGroups[group]?.id ?? mixedGroups[0]!.id} onGroup={groupId => { setPreviewGroup(mixedGroups.findIndex(entry => entry.id === groupId)); }} switchId={switchId} onSwitch={setSwitch} confirm={confirm} switchOptions={typeChoice}
         assignmentSummaries={Object.fromEntries(SWITCH_IDS.flatMap(pedal => { const entry = settings.mixedAssignments?.find(value => value.groupIndex === group && value.switchId === pedal); return entry?.typeCode === 1 ? [[pedal, mt('keyboardAction')]] : entry?.typeCode === 2 ? [[pedal, mt('pageAction')]] : []; }))}
         midiEditable={mixed?.typeCode === 0} externalPending={pending} onPendingChange={reportPending}>
-        {mixed?.typeCode === 1 && <ShortcutEditor key={`${group}:${switchId}:${revision}:${JSON.stringify(mixed.combination)}`} {...(mixed.combination ? { combination: mixed.combination } : {})} onChange={combination => changeMixed({ combination })} onPendingChange={reportPending} />}
+        {mixed?.typeCode === 1 && <ShortcutEditor key={`${group}:${switchId}:${revision}:${JSON.stringify(mixed.combination)}`} {...(mixed.combination ? { combination: mixed.combination } : {})} onChange={combination => changeMixed({ combination }, false)} onPendingChange={reportPending} />}
         {mixed?.typeCode === 2 && turner}
       </GuidedEditor> : <>
         {(groupCount > 1 || fixed) && <div className="guided-navigation">{fixed && <div><p className="eyebrow">{mt('fixedRange')}</p><strong className="fixed-program-range">000–{String(groupCount * 4 - 1).padStart(3, '0')}</strong></div>}
@@ -127,7 +127,7 @@ export function ModeEditor({ configuration, onChange, confirm, onPendingChange, 
         {assignment === 'customSelectors' && <label className="field"><span>{mt('switch')} {switchId} · {mt('command')}</span><select value={settings[`customCommand${switchId}`] ?? ''} onChange={event => change({ [`customCommand${switchId}`]: Number(event.target.value) })}>
           {settings[`customCommand${switchId}`] === undefined && <option value="" disabled>{mt('preserve')}</option>}{CONTROLLER_CUSTOM_COMMANDS.map(command => <option value={command.index} key={command.index}>{command.label[locale]}</option>)}
         </select></label>}
-        {assignment === 'keyboard' && <ShortcutEditor key={`${group}:${switchId}:${revision}:${JSON.stringify(keyboard?.combination)}`} {...(keyboard?.combination ? { combination: keyboard.combination } : {})} onChange={combination => change({ keyboardAssignments: [...(settings.keyboardAssignments ?? []).filter(entry => entry.groupIndex !== group || entry.switchId !== switchId), { groupIndex: group, switchId, combination }] })} onPendingChange={reportPending} />}
+        {assignment === 'keyboard' && <ShortcutEditor key={`${group}:${switchId}:${revision}:${JSON.stringify(keyboard?.combination)}`} {...(keyboard?.combination ? { combination: keyboard.combination } : {})} onChange={combination => change({ keyboardAssignments: [...(settings.keyboardAssignments ?? []).filter(entry => entry.groupIndex !== group || entry.switchId !== switchId), { groupIndex: group, switchId, combination }] }, false)} onPendingChange={reportPending} />}
         {assignment === 'mixed' && !mixedGroups?.length && <div className="mode-empty-groups"><p className="helper">{mt('customGroupsHint')}</p><button className="secondary" type="button" onClick={() => confirm(mt('customGroups'), mt('customGroups'), () => {
           const groups: Group[] = Array.from({ length: 6 }, (_, index) => ({ id: crypto.randomUUID(), name: `${mt('group')} ${index + 1}`, switches: { A: { label: 'A', behavior: 'single', actions: [] }, B: { label: 'B', behavior: 'single', actions: [] }, C: { label: 'C', behavior: 'single', actions: [] }, D: { label: 'D', behavior: 'single', actions: [] } } }));
           if (onChange({ ...configuration, mixedGroups: groups }) === false) setError(true);

@@ -53,7 +53,7 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
   const preview = currentApproval?.preview;
   const reviewedConfiguration = useMemo(() => {
     if (!preview || !state.observed) return null;
-    const projected = state.observed.rawBackup.bytes.slice();
+    const projected = new Uint8Array(state.observed.rawBackup.bytes);
     for (const patch of preview.patches) projected[patch.offset] = patch.after;
     // Decode the actual byte plan, not inactive draft edits the mapper will ignore.
     return configurationFromBytes(projected, preview.configuration).configuration;

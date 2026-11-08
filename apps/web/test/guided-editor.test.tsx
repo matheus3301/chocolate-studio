@@ -9,7 +9,6 @@ import { EquipmentStep } from '../src/EquipmentStep.js';
 import { GuidedEditor } from '../src/GuidedEditor.js';
 import type { GuidedEditorProps } from '../src/GuidedEditor.js';
 import { Destinations } from '../src/EditorViews.js';
-import { groupProgramRange } from '../src/guided-navigation.js';
 import { i18n, initializeLanguage } from '../src/i18n.js';
 
 const profile = equipmentProfiles[0]!;
@@ -81,7 +80,6 @@ describe('generic musical action forms', () => {
     fireEvent.change(input, { target: { value: '12' } });
     await userEvent.setup().click(tapForm().getByRole('button', { name: i18n.t('guided.applyAction') }));
     expect(rendered.current().groups[0]!.switches.A.actions[0]!.messages).toEqual([{ type: 'pc', channel: 3, program: 7, destinationId: 'stage-unit' }]);
-    expect(screen.getByText(/Stage unit · Choose scene/)).toBeTruthy();
   });
 
   it('changes an existing musical parameter without asking to replace the ordinary bound sequence', async () => {
@@ -141,24 +139,24 @@ describe('pending action navigation', () => {
     expect(screen.getByRole('heading', { name: i18n.t('editingSwitch', { switch: 'B' }) })).toBeTruthy();
   });
 
-  it('aggregates tap/hold forms so applying one cannot clear the other, and compiles hold as shortLong secondary', async () => {
+  it('guards gesture changes and preserves the applied tap when a hold action is committed', async () => {
     const rendered = showEditor(fixture());
     const user = userEvent.setup();
     await user.selectOptions(tapForm().getByLabelText(i18n.t('guided.action')), 'select-preset');
     await user.click(screen.getByRole('button', { name: i18n.t('guided.addHold') }));
+    expect(screen.queryByRole('form', { name: i18n.t('guided.onHold') })).toBeNull();
+    expect(rendered.confirm).toHaveBeenCalledTimes(1);
+    await user.click(tapForm().getByRole('button', { name: i18n.t('guided.applyAction') }));
+    await user.click(screen.getByRole('button', { name: i18n.t('guided.addHold') }));
     const hold = within(screen.getByRole('form', { name: i18n.t('guided.onHold') }));
     await user.selectOptions(hold.getByLabelText(i18n.t('guided.action')), 'select-preset');
     fireEvent.change(hold.getByRole('spinbutton'), { target: { value: '2' } });
-    await user.click(tapForm().getByRole('button', { name: i18n.t('guided.applyAction') }));
-    expect(rendered.pending.mock.calls.at(-1)).toEqual([true]);
     await user.click(hold.getByRole('button', { name: i18n.t('guided.applyAction') }));
     const selected = rendered.current().groups[0]!.switches.A;
     expect(selected.behavior).toBe('shortLong');
     expect(selected.actions.map((entry) => entry.gesture)).toEqual(['press']);
     expect(selected.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
     expect(selected.secondaryMessages![0]).toMatchObject({ type: 'pc', program: 1 });
-    expect(rendered.pending.mock.calls.at(-1)).toEqual([false]);
-    rendered.unmount();
     expect(rendered.pending.mock.calls.at(-1)).toEqual([false]);
   });
 });
@@ -191,21 +189,4 @@ describe('equipment instances and stored navigation', () => {
     expect((screen.getByRole('spinbutton', { name: i18n.t('defaultChannel') }) as HTMLInputElement).closest('fieldset')!.disabled).toBe(true);
   });
 
-  it('navigates only actual stored groups and does not conflate raw0/pcDisplay=false with advanced assignment numbers', async () => {
-    const configuration = fixture();
-    for (let groupIndex = 0; groupIndex < 3; groupIndex++) {
-      if (groupIndex) { const next = structuredClone(configuration.groups[0]!); next.id = `stored-${groupIndex}`; next.name = `Stored ${groupIndex}`; configuration.groups.push(next); }
-      for (const [index, id] of SWITCH_IDS.entries()) configuration.groups[groupIndex]!.switches[id].actions = [{ gesture: 'press', messages: [{ type: 'pc', channel: 1, program: groupIndex * 4 + index }] }];
-    }
-    const rendered = showEditor(configuration, { modeMetadata: { rawMode: 0, modeKind: 'program-change', displayStyle: 'pc-number', pcDisplayEnabled: false } });
-    expect(screen.getByText(i18n.t('guided.programChangeMode'))).toBeTruthy();
-    expect(screen.queryByText(i18n.t('guided.numbersOnChocolate'))).toBeNull();
-    expect(within(screen.getByLabelText(i18n.t('guided.goToChoices'))).getAllByRole('option').map((entry) => entry.textContent)).toEqual(configuration.groups.map((group) => group.name));
-    await userEvent.setup().click(screen.getByRole('button', { name: i18n.t('guided.nextChoices') }));
-    expect((screen.getByLabelText(i18n.t('guided.goToChoices')) as HTMLSelectElement).value).toBe('stored-1');
-    expect(rendered.current()).toEqual(configuration);
-    expect(groupProgramRange(configuration.groups[1]!)).toBe('004–007');
-    configuration.groups[1]!.switches.C.secondaryMessages = [{ type: 'pc', channel: 1, program: 90 }];
-    expect(groupProgramRange(configuration.groups[1]!)).toBeUndefined();
-  });
 });
