@@ -1,6 +1,6 @@
 # Beta qualification
 
-Release candidate: `0.1.0-beta.1`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
+Release: `0.1.0-beta.2`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
 
 | Capability | Evidence and boundary |
 | --- | --- |
@@ -10,7 +10,7 @@ Release candidate: `0.1.0-beta.1`. Tests performed 2026-11-07/08 on macOS 26.6.2
 | Responsive layout | Desktop and 390px viewport visually inspected; no horizontal overflow observed. |
 | Device backup import | Original FCP imported locally: 23,646 bytes and matching SHA-256; marked as an unverified imported file. |
 | Native configuration read/write/restore | Actual TypeScript library and layout, physical controller, CoreMIDI transport. [Channel experiment](../research/experiments/001-hardware-roundtrip.md) and [bank experiment](../research/experiments/002-bank-library-roundtrip.md). Full final read matched the original backup. |
-| Browser hardware adapter | Simulated endpoint tests cover protocol flow, preview ownership, conflicts, unknown bytes, concurrency, failed verification and restoration. Physical Web MIDI roundtrip is still pending browser permission. |
+| Browser hardware adapter | Simulated endpoint tests cover protocol flow, preview ownership, conflicts, unknown bytes, concurrency, failed verification and restoration. Physical Chrome Web MIDI read/write/readback/restore passed on the public origin; see the [browser experiment](../research/experiments/003-web-midi-roundtrip.md). |
 | Footswitch output / power-cycle persistence | Unverified. Storage readback does not establish these behaviors. |
 | Factory reset / firmware update | Unsupported. No guessed reset or flashing command. |
 
@@ -18,7 +18,7 @@ The baseline remains private. Its SHA-256 is `6d45d5b2655f363f892bda52bfd3ca56e5
 
 ## Deployment
 
-Public origin: <https://chocolate-studio.mmonteiro.dev>. Repository: `matheus3301/chocolate-studio` (private). Coolify uses its authenticated GitHub App, the root Dockerfile, port 8080 and `/health`.
+Public origin: <https://chocolate-studio.mmonteiro.dev>. Repository: `matheus3301/chocolate-studio` (public, MIT). Coolify uses its authenticated GitHub App, the root Dockerfile, port 8080 and `/health`.
 
 The real application image was built with a fresh base pull and a frozen lockfile; it ran locally as UID/GID 101:101 with a read-only root filesystem, writable `/tmp`, no extra capabilities and a successful Docker health check. Homepage/assets, SPA fallback, asset 404s, cache headers, CSP and Web MIDI permissions policy were checked. Initial runtime image size: 13,765,827 bytes. Production dependency audit found no known vulnerabilities; no image scanner was installed locally.
 

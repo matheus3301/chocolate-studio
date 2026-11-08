@@ -16,7 +16,7 @@ The product runs entirely on the client, supports Portuguese and English, and us
 
 ## Status
 
-The public beta is available at [chocolate-studio.mmonteiro.dev](https://chocolate-studio.mmonteiro.dev). The actual TypeScript library has passed full configuration reads, channel and advanced-bank storage writes, exact readback and restoration on a Chocolate Plus identifying as `FootCtrlPlus_016`. See [hardware evidence](research/experiments/002-bank-library-roundtrip.md), [layout mapping](packages/chocolate-layout/MAPPING.md), and [release qualification](docs/release-qualification.md).
+The public beta is available at [chocolate-studio.mmonteiro.dev](https://chocolate-studio.mmonteiro.dev). The actual TypeScript library has passed full configuration reads, channel and advanced-bank storage writes, exact readback and restoration on a Chocolate Plus identifying as `FootCtrlPlus_016`. The public site also passed a physical Chrome Web MIDI read/write/readback/restore cycle ([browser experiment](research/experiments/003-web-midi-roundtrip.md)). See [hardware evidence](research/experiments/002-bank-library-roundtrip.md), [layout mapping](packages/chocolate-layout/MAPPING.md), and [release qualification](docs/release-qualification.md).
 
 The editor programs PC/CC sequences in advanced mode: up to eight groups, four switches per group and two banks of up to sixteen expanded MIDI messages per switch. Bank selection expands to CC0/CC32 before PC. Names, destination labels and preset libraries are local project metadata. Keyboard/custom opaque records are preserved rather than silently converted.
 
@@ -38,3 +38,7 @@ Use the pinned pnpm version, install dependencies, then run `pnpm test`, `pnpm t
 The application requires Web MIDI with SysEx permission for hardware access. Its project editor, JSON import/export and local storage do not require a connected controller. There is no account, application backend, cloud configuration storage or analytics.
 
 Deployment uses a multi-stage Dockerfile serving static assets through Coolify. Configuration and MIDI traffic remain in the browser.
+
+## License
+
+[MIT](LICENSE), copyright 2026 Matheus Monteiro and Chocolate Studio contributors. Third-party dependencies retain their own licenses.

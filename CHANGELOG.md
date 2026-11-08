@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.2 — 2026-11-08 UTC
+
+- Public source repository under the MIT license; npm publishing remains disabled.
+- Physical Web MIDI qualification completed through the public site in Chrome: complete backup, PC/CC A/B edit, seven-byte reviewed write, exact full readback, and restoration of the original configuration.
+- Independent native read after browser disconnection confirmed all 23,646 original bytes. See [experiment 003](research/experiments/003-web-midi-roundtrip.md).
+- No protocol or editor behavior changes in this release; physical gestures, power-cycle persistence and external effects routing remain unverified.
+
 ## 0.1.0-beta.1 — 2026-11-08 UTC
 
 First public beta, entirely client-side, in Portuguese and English.

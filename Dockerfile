@@ -22,6 +22,7 @@ FROM nginx:1.30.6-alpine-slim@sha256:f65ed258206d1eb6c4eb6141111715a2cf94ac0a4ec
 # Remove the base image's welcome/error pages; only the built application is served.
 RUN rm -rf /usr/share/nginx/html/*
 COPY apps/web/nginx.conf /etc/nginx/nginx.conf
+COPY LICENSE /usr/share/nginx/html/LICENSE.txt
 COPY --from=build /studio/apps/web/dist/ /usr/share/nginx/html/
 
 # Root-owned assets/config, unprivileged master/workers, writable state only in /tmp.
