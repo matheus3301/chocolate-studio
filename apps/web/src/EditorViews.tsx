@@ -5,6 +5,7 @@ import type { MidiMessage, Preset, StudioConfiguration, SwitchBehavior, SwitchId
 import { applyPreset, destinationIsUsed, editGroup, setMessages } from './editor.js';
 import type { Sequence } from './editor.js';
 import { Empty, Icon, MessageFields, NameField, NumberField } from './components.js';
+import { destinationHasBindings } from './guided-actions.js';
 
 interface EditorProps {
   configuration: StudioConfiguration;
@@ -16,6 +17,7 @@ interface EditorProps {
   sequence: Sequence;
   onSequence: (sequence: Sequence) => void;
   confirm: (title: string, label: string, action: () => void) => void;
+  inspectorOnly?: boolean;
 }
 
 export function Pedalboard(props: EditorProps) {
@@ -47,6 +49,7 @@ export function Pedalboard(props: EditorProps) {
     onSequence('primary');
   }
   return <>
+    {!props.inspectorOnly && <>
     <header className="page-heading"><div><p className="eyebrow">{t('workspace')}</p><h1>{t('subtitle')}</h1><p>{t('boardHint')}</p></div><span className="outline-tag">{t('draft')}</span></header>
     <section className="panel board-panel" aria-label={t('board')}>
       <div className="section-heading group-heading"><div className="group-selector" role="group" aria-label={t('group')}>{configuration.groups.map((entry, index) => <button key={entry.id} className={entry.id === group.id ? 'group-button active' : 'group-button'} aria-pressed={entry.id === group.id} onClick={() => { onGroup(entry.id); onSequence('primary'); }}><span>{String(index + 1).padStart(2, '0')}</span>{entry.name}</button>)}</div>
@@ -74,7 +77,6 @@ export function Pedalboard(props: EditorProps) {
       <div className="controller-pair-help" id={`${controllerId}-pairs`}>
         <span>{t('pairPress', { pair: 'E', left: 'A', right: 'B' })}</span>
         <span>{t('pairPress', { pair: 'F', left: 'C', right: 'D' })}</span>
-        <p>{t('pairEditingHint')}</p>
       </div>
       <dl className="controller-assignments" aria-label={t('switchAssignments')}>
         {SWITCH_IDS.map((id) => {
@@ -92,6 +94,7 @@ export function Pedalboard(props: EditorProps) {
       </dl>
       <p className="panel-footnote">{t('groupHint')}</p>
     </section>
+    </>}
     <section className="panel inspector">
       <header className="section-heading"><div><p className="eyebrow">{group.name}</p><h2>{t('switch')} {switchId} <span className="muted">/ {pedal.label}</span></h2></div><span className="small-tag">{t('draft')}</span></header>
       <div className="inspector-meta"><NameField label={t('label')} max={64} value={pedal.label} onChange={(label) => onChange(editGroup(configuration, group.id, (next) => { next.switches[switchId].label = label; }))} />
@@ -135,6 +138,15 @@ export function Destinations({ configuration, onChange }: Pick<EditorProps, 'con
   const { t } = useTranslation();
   return <><header className="page-heading"><div><p className="eyebrow">MIDI</p><h1>{t('destinations')}</h1><p>{t('destinationHint')}</p></div><button className="primary" disabled={configuration.destinations.length >= CONFIGURATION_LIMITS.destinations} onClick={() => onChange({ ...configuration, destinations: [...configuration.destinations, { id: crypto.randomUUID(), name: t('newDestination'), channel: 1 }] })}><Icon name="plus" />{t('addDestination')}</button></header>
     {!configuration.destinations.length && <Empty title={t('destinations')} detail={t('noDestinations')} />}
-    <div className="destination-list">{configuration.destinations.map((destination, index) => { const used = destinationIsUsed(configuration, destination.id); return <article className="panel destination-card" key={destination.id}><span className="destination-index">{String(index + 1).padStart(2, '0')}</span><div><NameField label={t('destinationName')} value={destination.name} onChange={(name) => onChange({ ...configuration, destinations: configuration.destinations.map((entry) => entry.id === destination.id ? { ...entry, name } : entry) })} /><p className="helper">{used ? t('destinationUsed') : t('defaultHint')}</p></div><NumberField label={t('defaultChannel')} min={1} max={16} value={destination.channel} onChange={(channel) => onChange({ ...configuration, destinations: configuration.destinations.map((entry) => entry.id === destination.id ? { ...entry, channel } : entry) })} /><button className="text-button danger" disabled={used} title={used ? t('destinationUsed') : t('remove')} onClick={() => onChange({ ...configuration, destinations: configuration.destinations.filter((entry) => entry.id !== destination.id) })}>{t('remove')}</button></article>; })}</div>
+    <div className="destination-list">{configuration.destinations.map((destination, index) => {
+      const bound = destinationHasBindings(configuration, destination.id);
+      const used = destinationIsUsed(configuration, destination.id) || bound;
+      return <article className="panel destination-card" key={destination.id}>
+        <span className="destination-index">{String(index + 1).padStart(2, '0')}</span>
+        <div><NameField label={t('destinationName')} value={destination.name} onChange={(name) => onChange({ ...configuration, destinations: configuration.destinations.map((entry) => entry.id === destination.id ? { ...entry, name } : entry) })} /><p className="helper">{bound ? t('guided.boundChannelHint') : used ? t('destinationUsed') : t('defaultHint')}</p></div>
+        <fieldset className="guided-fields" disabled={bound}><NumberField label={t('defaultChannel')} min={1} max={16} value={destination.channel} onChange={(channel) => onChange({ ...configuration, destinations: configuration.destinations.map((entry) => entry.id === destination.id ? { ...entry, channel } : entry) })} /></fieldset>
+        <button className="text-button danger" disabled={used} title={used ? t('destinationUsed') : t('remove')} onClick={() => onChange({ ...configuration, destinations: configuration.destinations.filter((entry) => entry.id !== destination.id) })}>{t('remove')}</button>
+      </article>;
+    })}</div>
   </>;
 }
