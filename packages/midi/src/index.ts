@@ -20,3 +20,17 @@ export type {
 } from './configuration.js';
 export { importConfiguration, exportConfiguration } from './json.js';
 export type { ConfigurationImportError, ConfigurationImportResult } from './json.js';
+export {
+  equipmentTextSchema, equipmentProfileReferenceSchema, equipmentActionParametersSchema,
+  equipmentActionInvocationSchema, equipmentProfileSchema,
+} from './equipment-schema.js';
+export type {
+  EquipmentText, EquipmentLocale, EquipmentProfileReference, EquipmentActionParameters,
+  EquipmentActionInvocation, EquipmentAction, EquipmentProfile,
+} from './equipment-schema.js';
+export {
+  equipmentProfiles, getEquipmentProfile, localizeEquipmentText,
+  compileEquipmentAction, EquipmentActionError,
+} from './equipment.js';
+export { applyEquipmentAction, clearEquipmentActionBinding } from './equipment-actions.js';
+export type { EquipmentSequence, ApplyEquipmentActionOptions } from './equipment-actions.js';

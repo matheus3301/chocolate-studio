@@ -19,6 +19,7 @@ it.each(['single', 'alternate', 'momentary', 'long', 'shortLong'] satisfies Swit
 
 it('preserves the version 1 contract for files without sequence fields', () => {
   const legacy = createDefaultConfiguration();
+  legacy.formatVersion = 1;
   const imported = importConfiguration(JSON.stringify(legacy));
   expect(imported).toEqual({ success: true, data: legacy });
   if (!imported.success) throw new Error('Expected legacy configuration');

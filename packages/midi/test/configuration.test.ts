@@ -34,7 +34,7 @@ describe('versioned configuration', () => {
   it('rejects unknown versions, unknown keys, and malformed JSON', () => {
     const configuration = createDefaultConfiguration();
     expect(importConfiguration('{ broken')).toMatchObject({ success: false, error: { code: 'syntax' } });
-    for (const input of [null, [], { ...configuration, formatVersion: 2 },
+    for (const input of [null, [], { ...configuration, formatVersion: 3 },
       { ...configuration, unexpected: true }, { ...configuration, presets: undefined }]) {
       expect(importConfiguration(JSON.stringify(input)).success).toBe(false);
     }
@@ -91,7 +91,7 @@ describe('versioned configuration', () => {
 describe('untrusted input limits', () => {
   it.each(['__proto__', 'constructor', 'prototype'])('rejects dangerous key %s and reserved IDs', (key) => {
     const json = exportConfiguration(createDefaultConfiguration());
-    const injected = json.replace('"formatVersion": 1', `"${key}": {"polluted": true}, "formatVersion": 1`);
+    const injected = json.replace('"formatVersion"', `"${key}": {"polluted": true}, "formatVersion"`);
     expect(importConfiguration(injected).success).toBe(false);
     const configuration = createDefaultConfiguration();
     configuration.destinations[0]!.id = key;

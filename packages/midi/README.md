@@ -1,7 +1,7 @@
 # @chocolate-studio/midi
 
-Client-only, framework-independent TypeScript intent model. No Web MIDI access,
-storage, translations, device profiles, or Chocolate protocol implementation.
+Client-only, framework-independent TypeScript intent model with declarative
+equipment profiles. No Web MIDI access, storage, UI framework, or Chocolate protocol.
 
 ## API
 
@@ -37,12 +37,14 @@ displayToProgram(128, 1); // 127; base 0 is also supported.
 
 ### Types and validation
 
-- `StudioConfiguration`: `formatVersion: 1`, stable `id`, custom `name`,
-  `destinations`, `groups`, and `presets` arrays. Only version 1 is accepted.
+- `StudioConfiguration`: `formatVersion: 1 | 2`, stable `id`, custom `name`,
+  `destinations`, `groups`, and `presets` arrays. New defaults use version 2;
+  version 1 imports/exports retain their version and complete data without inferred bindings.
 - `Destination`: `id`, `name`, default `channel` (1–16). Message and preset
   channels are always explicit; destination defaults never override them.
   Optional `destinationId` references must resolve within the configuration.
   A destination reference describes routing intent, not an opened MIDI port.
+  Version 2 additionally accepts `profile?: { modelId, profileVersion }`.
 - `Group`: `id`, `name`, `switches: { A, B, C, D }`. Each switch has `label`
   and `actions: GestureAction[]`. At most one action for each of `press`,
   `release`, `longPress`, `doublePress`; an empty actions array is allowed.
@@ -89,6 +91,78 @@ draft.groups[0]!.switches.A.secondaryMessages = [
   { type: 'cc', channel: 1, controller: 80, value: 0 },
 ];
 ```
+
+### Equipment actions and version 2
+
+`equipmentProfiles` is the validated, frozen catalog. `getEquipmentProfile(modelId,
+profileVersion?)` resolves an exact pinned version, or the newest bundled semver
+when omitted. `localizeEquipmentText(text, 'en' | 'pt-BR')` reads profile-owned
+labels/help. Each action declares inclusive integer parameter ranges, initial
+form values, ordered deterministic messages, setup/capability requirements,
+primary-source citations, and separate destination-response evidence.
+
+```ts
+import { applyEquipmentAction } from '@chocolate-studio/midi';
+
+const tap = applyEquipmentAction(draft, 'group-1', 'A', 'primary', {
+  modelId: 'line6.m5', profileVersion: '0.1.0',
+  actionId: 'select-preset', parameters: { 'preset-number': 1 },
+  destinationId: 'destination-1',
+});
+const tapHold = applyEquipmentAction(tap, 'group-1', 'A', 'secondary', {
+  modelId: 'line6.m5', profileVersion: '0.1.0',
+  actionId: 'select-preset', parameters: { 'preset-number': 2 },
+  destinationId: 'destination-1',
+}, { behavior: 'shortLong' });
+// Primary PC0, secondary PC1; other switches/gestures/names remain unchanged.
+// shortLong is requested intent, not a claim about physical gesture execution.
+```
+
+`compileEquipmentAction(profile, actionId, parameters, destination)` returns raw
+`MidiMessage[]` with explicit destination/channel. Only constants and parameter
+plus integer offset are supported; no eval, implicit coercion/default filling,
+clamping, hardware queries or hidden toggle state. Bad parameters, channels,
+unavailable actions and mismatched model/version references throw.
+
+`applyEquipmentAction` is immutable and atomic, upgrades only edited v1 drafts to
+v2, and enforces complete configuration/serialized limits. It sets a missing
+destination profile but rejects an existing different one. The optional sixth
+argument also accepts `profiles`, a complete custom registry used for resolution.
+It changes only the chosen sequence; behavior changes only when explicitly passed.
+
+Version 2 stores `switch.actionBindings?: { primary?, secondary? }`. Each binding
+retains `{ modelId, profileVersion, actionId, parameters, destinationId }`. Primary
+means `actions[0].messages`; secondary means `secondaryMessages`. Known bindings
+must exactly reproduce their raw sequence, including channel/destination. Stale
+bindings fail import/export. Raw edits must explicitly remove the affected binding
+first (`clearEquipmentActionBinding(config, groupId, switchId, sequence)`), or
+delete that metadata atomically in the caller's draft edit. Changing a destination
+channel/profile similarly requires deliberate recompilation or detachment.
+
+Missing profile versions keep raw messages and references losslessly; they never
+resolve to the latest version or acquire a fabricated musical label. Unknown-version
+fallback still requires coherent destination/profile/channel references. It cannot
+be recompiled until that exact profile is available. Matching raw MIDI from hardware
+does not create an action binding: duplicate commands are ambiguous.
+
+Add profiles by appending JSON data to `src/equipment-profiles.json`, without
+editing the compiler or UI. The runtime vocabulary follows the research profile
+semantics but omits design-only `$schema`/`status`. Public `equipmentProfileSchema`
+rejects unsafe trees, unknown keys, duplicate/unresolved IDs and citations,
+missing PT/EN text, invalid parameter intervals, overflow-producing mappings,
+and unsupported bindings. Sources document intent, not hardware execution.
+
+Bundled [M5 primary manual, Rev A PDF p.8](https://line6.com/data/6/0a060b316ac34f0593fa7e002/application/pdf/M5%20Pilot):
+`select-preset` (`preset-number` 1–24 → PC0–23), `tap-tempo` (CC64=127),
+`effect-off`/`effect-on` (CC11=0/127), `expression-position` (`position` 0–127,
+CC1), `tuner-exit`/`tuner-enter` (CC69=0/127). Expression requires preset-local
+endpoint setup. MIDI clock is documented separately and is not an assignable
+PC/CC action. M5 DIN routing and physical Chocolate gestures remain separate
+capability checks; all bundled destination responses are untested.
+
+Version 1 forbids profile/binding metadata. No import silently upgrades versions,
+converts raw messages, changes custom Unicode names, or guesses action bindings.
+
 
 ### JSON boundary and limits
 
