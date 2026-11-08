@@ -30,11 +30,38 @@ export function useStudio() {
   const [busy, setBusy] = useState(false);
   const [persistent, setPersistent] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
-  const [incoming, setIncoming] = useState<StudioConfiguration | null>(null);
+  const [incoming, setIncomingState] = useState<StudioConfiguration | null>(null);
+  const importGeneration = useRef(0);
   const dirty = !saved || !sameConfiguration(configuration, saved.configuration);
 
   function record(key: string, kind: LocalEvent['kind'] = 'storage') {
     setEvents((current) => [...current.slice(-199), { id: crypto.randomUUID(), time: Date.now(), kind, key }]);
+  }
+
+  function setIncoming(next: StudioConfiguration | null) {
+    ++importGeneration.current;
+    setIncomingState(next);
+  }
+
+  function updateConfiguration(next: StudioConfiguration): boolean {
+    let messages = 0;
+    for (const group of next.groups) {
+      for (const pedal of Object.values(group.switches)) {
+        messages += pedal.secondaryMessages?.length ?? 0;
+        for (const action of pedal.actions) messages += action.messages.length;
+      }
+    }
+    if (messages > CONFIGURATION_LIMITS.totalMessages) {
+      setNotice('limitReached');
+      return false;
+    }
+    try { exportConfiguration(next); }
+    catch (error) {
+      setNotice(error instanceof RangeError ? 'limitReached' : 'invalidDraft');
+      return false;
+    }
+    setConfiguration(next);
+    return true;
   }
   useEffect(() => {
     let active = true;
@@ -52,7 +79,7 @@ export function useStudio() {
         if (active) { setPersistent(false); setNotice('storageUnavailable'); }
       } finally { if (active) setLoading(false); }
     })();
-    return () => { active = false; };
+    return () => { active = false; ++importGeneration.current; };
   }, []);
 
   useEffect(() => {
@@ -89,14 +116,18 @@ export function useStudio() {
   }
 
   async function importProject(file: File) {
+    const generation = ++importGeneration.current;
+    setIncomingState(null);
     if (file.size > CONFIGURATION_LIMITS.jsonBytes) { setNotice('fileTooLarge'); return; }
     try {
-      const result = importConfiguration(await file.text());
+      const text = await file.text();
+      if (generation !== importGeneration.current) return;
+      const result = importConfiguration(text);
       if (!result.success) { setNotice(result.error.code === 'size' ? 'fileTooLarge' : 'invalidFile'); return; }
-      setIncoming(result.data);
+      setIncomingState(result.data);
       setNotice(null);
       record('eventImport', 'files');
-    } catch { setNotice('fileReadError'); }
+    } catch { if (generation === importGeneration.current) setNotice('fileReadError'); }
   }
 
   async function replaceDraft() {
@@ -151,7 +182,7 @@ export function useStudio() {
     finally { setBusy(false); }
   }
 
-  return { configuration, setConfiguration, saved, backups, events, setEvents, loading, busy,
+  return { configuration, setConfiguration: updateConfiguration, saved, backups, events, setEvents, loading, busy,
     persistent, notice, setNotice, incoming, setIncoming, dirty, save, exportProject,
     importProject, replaceDraft, createBackup, deleteBackup, reloadSaved };
 }
