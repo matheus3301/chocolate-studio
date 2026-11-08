@@ -246,13 +246,36 @@ describe('independent Advanced, keyboard and Mixed storage', () => {
   });
 });
 
-describe('Advanced group limit intent', () => {
-  it('updates the active limit for an explicit group-list resize without treating the read controller limit as a new override', () => {
-    const baseline = image();
+describe('Advanced scalar presence precedence', () => {
+  it('preserves explicit saved max7 and initial5 when the draft contains only one Advanced group', () => {
+    const baseline = image(); baseline[0x5c57] = 7; baseline[0x5c58] = 5;
     const config = configurationFromBytes(baseline).configuration;
-    config.groups.push({ ...structuredClone(config.groups[0]!), id: 'added-group' });
+    config.groups = config.groups.slice(0, 1);
+    expect(config.controller).toMatchObject({ advancedMaxGroupIndex: 7, advancedGroupIndex: 5 });
     const result = configurationToBytes(baseline, config);
-    const expected = baseline.slice(); expected[0x5c57] = 1;
+    expect(result.unsupported).toEqual([]);
+    expect(result.bytes).toEqual(baseline);
+  });
+
+  it('derives group limit and initial group only for omitted legacy scalar fields', () => {
+    const baseline = image(); baseline[0x5c57] = 7; baseline[0x5c58] = 5;
+    const config = configurationFromBytes(baseline).configuration;
+    config.groups = config.groups.slice(0, 1);
+    delete config.controller!.advancedMaxGroupIndex;
+    delete config.controller!.advancedGroupIndex;
+    const result = configurationToBytes(baseline, config);
+    const expected = baseline.slice(); expected[0x5c57] = 0; expected[0x5c58] = 0;
+    expect(result.unsupported).toEqual([]);
+    expect(result.bytes).toEqual(expected);
+  });
+
+  it('does not reset an explicit saved initial group when only the legacy limit is omitted', () => {
+    const baseline = image(); baseline[0x5c57] = 7; baseline[0x5c58] = 5;
+    const config = configurationFromBytes(baseline).configuration;
+    config.groups = config.groups.slice(0, 1);
+    delete config.controller!.advancedMaxGroupIndex;
+    const result = configurationToBytes(baseline, config);
+    const expected = baseline.slice(); expected[0x5c57] = 0;
     expect(result.unsupported).toEqual([]);
     expect(result.bytes).toEqual(expected);
   });

@@ -334,3 +334,41 @@ describe('metadata identifier reconciliation', () => {
     expect(f.service.getSnapshot().baseline!.bytes).toEqual(original);
   });
 });
+
+describe('Advanced scalar presence precedence', () => {
+  it('keeps explicit saved max7/initial5 in actual preview and readback despite a one-group draft', async () => {
+    const f = setup(); f.bytes[0x5c57] = 7; f.bytes[0x5c58] = 5;
+    await connect(f); const read = await protectedRead(f.service);
+    const original = read.rawBackup.bytes.slice();
+    read.configuration.groups = read.configuration.groups.slice(0, 1);
+    read.configuration.groups[0]!.switches.A.actions = [{ gesture: 'press', messages: [{ type: 'pc', channel: 1, program: 12 }] }];
+    const preview = await f.service.preview(read.configuration);
+    expect(preview.configuration.controller).toMatchObject({ advancedMaxGroupIndex: 7, advancedGroupIndex: 5 });
+    expect(preview.patches.some(patch => patch.offset === 0x5c57 || patch.offset === 0x5c58)).toBe(false);
+    expect(preview.configuration.groups).toHaveLength(8);
+    expect(read.configuration.groups).toHaveLength(1);
+    expect(f.writes).toBe(0);
+    const verified = await f.service.write(preview.id);
+    const expected = original.slice(); expected.set([1, 0, 0, 12], 94);
+    expect(f.bytes).toEqual(expected);
+    expect(verified.configuration.controller).toMatchObject({ advancedMaxGroupIndex: 7, advancedGroupIndex: 5 });
+    expect(f.service.getSnapshot().baseline!.bytes).toEqual(original);
+  });
+
+  it('exposes omitted legacy scalar derivations in the planned preview without changing the draft or observed read', async () => {
+    const f = setup(); f.bytes[0x5c57] = 7; f.bytes[0x5c58] = 5;
+    await connect(f); const read = await protectedRead(f.service);
+    read.configuration.groups = read.configuration.groups.slice(0, 1);
+    delete read.configuration.controller!.advancedMaxGroupIndex;
+    delete read.configuration.controller!.advancedGroupIndex;
+    const preview = await f.service.preview(read.configuration);
+    expect(preview.configuration.controller).toMatchObject({ advancedMaxGroupIndex: 0, advancedGroupIndex: 0 });
+    expect(preview.patches).toEqual([
+      { offset: 0x5c57, before: 7, after: 0 }, { offset: 0x5c58, before: 5, after: 0 },
+    ]);
+    expect(read.configuration.controller!.advancedMaxGroupIndex).toBeUndefined();
+    expect(read.configuration.controller!.advancedGroupIndex).toBeUndefined();
+    expect(f.service.getSnapshot().observed!.configuration.controller).toMatchObject({ advancedMaxGroupIndex: 7, advancedGroupIndex: 5 });
+    expect(f.writes).toBe(0);
+  });
+});

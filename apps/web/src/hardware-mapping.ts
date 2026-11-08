@@ -221,12 +221,11 @@ export function configurationToBytes(baseline: Uint8Array, input: StudioConfigur
   }
   const observedCount = Math.min(8, Math.max(1, decoded.globals.advancedMaxGroupIndex + 1));
   const requestedLimit = config.controller?.advancedMaxGroupIndex;
-  if (scope === 'advanced' && config.groups.length !== observedCount &&
-      (requestedLimit === undefined || requestedLimit === decoded.globals.advancedMaxGroupIndex)) {
+  // Explicit scalar presence wins, even when unchanged from the stored baseline.
+  if (scope === 'advanced' && config.groups.length !== observedCount && requestedLimit === undefined) {
     patches.push({ kind: 'field', field: 'advancedMaxGroupIndex', value: config.groups.length - 1 });
     const requestedIndex = config.controller?.advancedGroupIndex;
-    if (decoded.globals.advancedGroupIndex >= config.groups.length &&
-        (requestedIndex === undefined || requestedIndex === decoded.globals.advancedGroupIndex)) {
+    if (decoded.globals.advancedGroupIndex >= config.groups.length && requestedIndex === undefined) {
       patches.push({ kind: 'field', field: 'advancedGroupIndex', value: 0 });
     }
   }
