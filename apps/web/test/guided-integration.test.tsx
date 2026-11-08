@@ -41,6 +41,21 @@ it('reviews musical intent with separate tap and hold rather than presenting raw
   expect(screen.getByText(/Select preset.*Preset number: 2/)).toBeTruthy();
 });
 
+it('does not invent changes after export key reordering, but preserves meaningful sequence order', () => {
+  const before = musicalProject();
+  before.groups[0]!.switches.B.actions[0]!.messages = [
+    { type: 'cc', channel: 1, controller: 10, value: 0 },
+    { type: 'cc', channel: 1, controller: 10, value: 127 },
+  ];
+  const after = JSON.parse(exportConfiguration(before));
+  const view = render(<MusicalReview before={before} after={after} />);
+  expect(screen.getByText('No actions changed.')).toBeTruthy();
+  after.groups[0].switches.B.actions[0].messages.reverse();
+  view.rerender(<MusicalReview before={before} after={after} />);
+  expect(screen.queryByText('No actions changed.')).toBeNull();
+  expect(screen.getAllByRole('article')).toHaveLength(1);
+});
+
 it('adopting a complete read preserves unsaved local actions and their bindings in a recoverable copy', async () => {
   const { result } = renderHook(() => useStudio());
   await waitFor(() => expect(result.current.loading).toBe(false));

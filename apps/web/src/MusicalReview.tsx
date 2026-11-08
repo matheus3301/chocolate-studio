@@ -2,6 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { SWITCH_IDS, getEquipmentProfile, localizeEquipmentText } from '@chocolate-studio/midi';
 import type { MidiMessage, StudioConfiguration, SwitchConfiguration } from '@chocolate-studio/midi';
 
+// Exported projects sort object keys; key order is not an assignment change.
+// Keep array order because MIDI message sequencing is meaningful.
+function comparable(value: unknown) {
+  return JSON.stringify(value, (_key, item: unknown) => item && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+}
+
 export function MusicalReview({ before, after, device = false }: { before: StudioConfiguration; after: StudioConfiguration; device?: boolean }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'pt-BR' ? 'pt-BR' : 'en';
@@ -14,7 +21,7 @@ export function MusicalReview({ before, after, device = false }: { before: Studi
     return SWITCH_IDS.flatMap((switchId) => {
       const a = previous?.switches[switchId];
       const b = next?.switches[switchId];
-      return JSON.stringify(device ? midiOnly(a) : a) === JSON.stringify(device ? midiOnly(b) : b) ? [] : [{ id: `${id}-${switchId}`, name: next?.name ?? previous!.name, switchId, before: a, after: b }];
+      return comparable(device ? midiOnly(a) : a) === comparable(device ? midiOnly(b) : b) ? [] : [{ id: `${id}-${switchId}`, name: next?.name ?? previous!.name, switchId, before: a, after: b }];
     });
   });
   function messageSummary(message: MidiMessage, configuration: StudioConfiguration): string {
