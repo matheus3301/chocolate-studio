@@ -171,6 +171,32 @@ Retorno: abrir projeto/rascunho local sem repetir equipamento; conexão anterior
 
 Equipamento descreve a intenção; adaptador do Chocolate limita o que pode ser gravado. Template não é preset de áudio nem receita para sobrescrever o pedalboard inteiro.
 
+### Contrato da experiência: editor genérico, ações do equipamento
+
+Esclarecimento do usuário: **a interface não é uma tela da M5, TONEX ou Quad Cortex.** É um único editor de atribuições; o perfil selecionado fornece o vocabulário e a tradução necessária para expressar o resultado no equipamento final. A M5 é o primeiro conjunto de dados para validar esse editor, não sua arquitetura.
+
+Ao selecionar uma posição/botão do Chocolate, o editor apresenta, para cada gesto:
+
+```text
+Ao tocar
+Equipamento  [ Meu equipamento ▼ ]
+Ação         [ Selecionar preset ▼ ]
+Preset       [ 1 ]
+
+Resultado esperado: selecionar o preset 1 em Meu equipamento.
+Detalhes MIDI ▸
+```
+
+- **Equipamento / Device**, **Ação / Action**, **Ao tocar / On tap**, **Ao segurar / On hold** e **Detalhes MIDI / MIDI details** pertencem ao editor comum.
+- A lista de ações, seus nomes, instruções, parâmetros, faixas e numeração vêm do perfil, em PT-BR/EN. O campo “Preset” só existe quando a ação escolhida o requer; selecionar “Entrar no afinador”, por exemplo, remove esse campo. Não existe um campo fixo “Preset da M5” no componente.
+- O equipamento escolhido no wizard é o destino inicial das novas atribuições. Cada ação referencia sua instância explicitamente; selecionar A abre a escolha de ação naquele destino, com possibilidade de trocar de equipamento sem reescrever os demais botões. A aplicação não fica globalmente em uma “tela M5”.
+- Na M5, selecionar preset 1 gera PC0 por regra do perfil. O usuário escolhe o resultado musical; a numeração MIDI fica nos detalhes. Outro perfil fornece sua própria numeração e mensagens sem mudar o formulário comum.
+- O resumo mostra equipamento + ação + parâmetros na linguagem do destino. É **resultado esperado**, não confirmação de estado atual ou prova de execução física. Usar os mesmos dados na edição, revisão e exportação.
+- Mudança de equipamento exige nova escolha ou compatibilidade explícita da ação; não carregar um comando do perfil anterior sob um novo nome. Cancelar conserva a atribuição anterior.
+- O renderer conhece tipos de controle suportados pelo contrato, não fabricantes. Acrescentar um perfil que usa esses tipos altera apenas dados. Uma nova categoria de parâmetro/protocolo exige extensão genérica do contrato, nunca um componente exclusivo daquela marca.
+
+**Aceite:** carregar dois perfis de teste com faixas e traduções MIDI diferentes no mesmo editor; os campos e a mensagem gerada devem acompanhar o perfil sem condicionais por modelo. Trocar de “Selecionar preset” para uma ação sem parâmetros deve remover o campo de preset. Adicionar um perfil dentro do contrato não deve exigir editar componentes nem o módulo central de traduções. A maquete inicial contém atalhos específicos da M5 e precisa ser substituída por esse comportamento antes da implementação do produto.
+
 Catálogo de pesquisa para revisão: [perfil M5](../../research/templates/line6-m5.json), [schema](../../research/templates/catalog.schema.json), [template A/toque/segurar](../../research/templates/line6-m5-tap-hold.template.json) e [contrato/limites](../../research/templates/README.md). Não são carregados pela aplicação; todas as ações estão sem teste no destino. A tabela resume o catálogo, fonte [M5 Rev A, PDF p. 8][M5]:
 
 | Ação PT / EN | Mapeamento | Escopo |

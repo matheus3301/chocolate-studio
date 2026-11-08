@@ -15,6 +15,7 @@ O exemplo inicial usa presets 1–4 nos botões. Esses valores são fictícios: 
 
 - Nenhum Web MIDI, acesso ao pedal, rede, persistência ou dependência da aplicação. Recarregar descarta o estado de demonstração.
 - Interface apenas em português nesta maquete; a especificação e o catálogo incluem PT-BR e inglês. A implementação exige ambos.
+- A maquete contém ações e campos específicos da M5 no código. Isso é uma simplificação de pesquisa a substituir: o produto exige um único editor que renderize ações, parâmetros e traduções a partir do perfil, sem telas ou condicionais por fabricante.
 - Um grupo e um equipamento por vez. M5 e Avançado conservam rascunhos separados em memória. Não é o contrato final de migração de projetos.
 - CC no Avançado usa valor fixo 127, explicitamente indicado. O produto terá controle e valor editáveis.
 - A busca/leitura é simulada. O produto exige confirmação das portas, identidade, leitura integral, cópia recuperável e comparação antes de gravar.

@@ -18,6 +18,7 @@ Entrega de pesquisa e desenho, anterior à implementação. Objetivo: uma pessoa
 
 - Primeiro uso guiado; retorno direto à edição com reconexão contextual. Uma tarefa principal por tela, sem slogans ou painel técnico na entrada.
 - **O que você vai controlar?** → M5 inicialmente; MIDI Avançado para mensagens genéricas. Outros modelos entram por perfis declarativos com fontes próprias.
+- **Um editor de ações para todos os equipamentos:** equipamento → ação → parâmetros definidos pelo perfil. O perfil adapta nomes, opções, limites e tradução MIDI; nenhum campo “Preset da M5” ou tela exclusiva por marca. A escolha inicial do wizard não impede destinos distintos nas atribuições.
 - Editor centrado no desenho A/B–visor–C/D e nas ações **Ao tocar / Ao segurar**. E/F continuam representados como combinações, sem campos de atribuição nem promessa universal de navegação.
 - Perfil descreve o equipamento; instância define nome/canal; template combina ações e comportamentos do controlador. Não misturar preset de áudio, grupo do Chocolate e sequência interna.
 - Exemplo obrigatório: A/toque → preset 1; A/segurar → preset 2. No perfil M5 isso gera PC0/PC1. No adaptador atual, usa `shortLong`, sequência primária e secundária.
