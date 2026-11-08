@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CONFIGURATION_LIMITS, SWITCH_IDS } from '@chocolate-studio/midi';
 import type { MidiMessage, Preset, StudioConfiguration, SwitchBehavior, SwitchId } from '@chocolate-studio/midi';
@@ -21,6 +21,7 @@ interface EditorProps {
 export function Pedalboard(props: EditorProps) {
   const { configuration, onChange, groupId, onGroup, switchId, onSwitch, sequence, onSequence, confirm } = props;
   const { t } = useTranslation();
+  const controllerId = useId();
   const group = configuration.groups.find((entry) => entry.id === groupId) ?? configuration.groups[0]!;
   const pedal = group.switches[switchId];
   const messages = sequence === 'secondary' ? pedal.secondaryMessages ?? [] : sequence === 'primary' ? pedal.actions[0]?.messages ?? [] : pedal.actions.find((action) => action.gesture === sequence)?.messages ?? [];
@@ -50,19 +51,46 @@ export function Pedalboard(props: EditorProps) {
     <section className="panel board-panel" aria-label={t('board')}>
       <div className="section-heading group-heading"><div className="group-selector" role="group" aria-label={t('group')}>{configuration.groups.map((entry, index) => <button key={entry.id} className={entry.id === group.id ? 'group-button active' : 'group-button'} aria-pressed={entry.id === group.id} onClick={() => { onGroup(entry.id); onSequence('primary'); }}><span>{String(index + 1).padStart(2, '0')}</span>{entry.name}</button>)}</div>
         <button className="icon-button" disabled={configuration.groups.length >= CONFIGURATION_LIMITS.groups} title={t('addGroup')} aria-label={t('addGroup')} onClick={() => addGroup(false)}><Icon name="plus" /></button></div>
-      <div className="pedalboard" role="group" aria-label={t('switch')}>
+      <div className="controller-chassis">
+        <span className="controller-wordmark" aria-hidden="true">CHOCOLATE PLUS</span>
+        <div className="controller-deck" role="group" aria-label={t('controllerDiagram')} aria-describedby={`${controllerId}-pairs`}>
+          <span className="controller-pair pair-e" aria-hidden="true"><span>E</span></span>
+          <span className="controller-pair pair-f" aria-hidden="true"><span>F</span></span>
+          {SWITCH_IDS.map((id) => <Fragment key={id}>
+            {/* The central display represents editor selection, never physical device state. */}
+            {id === 'C' && <div className="controller-display" role="status" aria-label={t('editingSwitch', { switch: switchId })}>
+              <span>{t('editing')}</span><strong>{switchId}</strong>
+            </div>}
+            <button className={`controller-switch controller-switch-${id}`} aria-pressed={switchId === id}
+              aria-label={t('editSwitch', { switch: id, label: group.switches[id].label || id })}
+              aria-describedby={`${controllerId}-assignment-${id}`}
+              onClick={() => { onSwitch(id); onSequence('primary'); }}>
+              <span className="controller-metal" aria-hidden="true"><span /></span>
+              <span className="controller-letter" aria-hidden="true">{id}</span>
+            </button>
+          </Fragment>)}
+        </div>
+      </div>
+      <div className="controller-pair-help" id={`${controllerId}-pairs`}>
+        <span>{t('pairPress', { pair: 'E', left: 'A', right: 'B' })}</span>
+        <span>{t('pairPress', { pair: 'F', left: 'C', right: 'D' })}</span>
+        <p>{t('pairEditingHint')}</p>
+      </div>
+      <dl className="controller-assignments" aria-label={t('switchAssignments')}>
         {SWITCH_IDS.map((id) => {
           const entry = group.switches[id];
           const first = entry.actions[0]?.messages[0];
-          return <button key={id} className={`pedal ${switchId === id ? 'selected' : ''}`} aria-pressed={switchId === id} onClick={() => { onSwitch(id); onSequence('primary'); }}>
-            <span className="pedal-top"><span className="pedal-id">{id}</span><span className="pedal-led" /></span>
-            <span className="pedal-label">{entry.label || `${t('switch')} ${id}`}</span>
-            <span className="pedal-display">{first ? `${first.type.toUpperCase()} ${String(first.type === 'pc' ? first.program : first.controller).padStart(3, '0')}` : '—'}</span>
-            <span className="pedal-channel">{t('channel')} {first?.channel ?? '—'}<span>A {entry.actions[0]?.messages.length ?? 0} / B {entry.secondaryMessages?.length ?? 0}</span></span>
-            <span className="footswitch" aria-hidden="true"><span /></span>
-          </button>;
+          return <div className="controller-assignment" data-selected={switchId === id} id={`${controllerId}-assignment-${id}`} key={id}>
+            <dt><span className="assignment-letter">{id}</span><span>{entry.label || `${t('switch')} ${id}`}</span></dt>
+            <dd className="assignment-message">{first
+              ? `${first.type.toUpperCase()} ${first.type === 'pc' ? first.program : `${first.controller} → ${first.value}`} · ${t('channel')} ${first.channel}`
+              : t('noAssignment')}</dd>
+            <dd>{t('bankMessageCount', { bank: t('primary'), count: entry.actions[0]?.messages.length ?? 0 })}</dd>
+            <dd>{t('bankMessageCount', { bank: t('secondary'), count: entry.secondaryMessages?.length ?? 0 })}</dd>
+          </div>;
         })}
-      </div><p className="panel-footnote">{t('groupHint')}</p>
+      </dl>
+      <p className="panel-footnote">{t('groupHint')}</p>
     </section>
     <section className="panel inspector">
       <header className="section-heading"><div><p className="eyebrow">{group.name}</p><h2>{t('switch')} {switchId} <span className="muted">/ {pedal.label}</span></h2></div><span className="small-tag">{t('draft')}</span></header>
