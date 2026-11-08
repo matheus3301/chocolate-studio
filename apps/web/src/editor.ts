@@ -62,7 +62,23 @@ export function validConfiguration(configuration: StudioConfiguration): StudioCo
 }
 
 export function sameConfiguration(left: StudioConfiguration, right: StudioConfiguration): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  function equal(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+    if (Array.isArray(a)) {
+      if (!Array.isArray(b) || a.length !== b.length) return false;
+      for (let index = 0; index < a.length; index++) if (!equal(a[index], b[index])) return false;
+      return true;
+    }
+    if (Array.isArray(b)) return false;
+    const first = a as Record<string, unknown>;
+    const second = b as Record<string, unknown>;
+    const keys = Object.keys(first);
+    if (keys.length !== Object.keys(second).length) return false;
+    for (const key of keys) if (!Object.hasOwn(second, key) || !equal(first[key], second[key])) return false;
+    return true;
+  }
+  return equal(left, right);
 }
 
 export interface Difference { path: string[]; before: string; after: string }

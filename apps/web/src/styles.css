@@ -231,3 +231,7 @@ tbody th { font-weight: 400; color: #b5c09f; }
 .review-sequence li { padding-bottom: 6px; overflow-wrap: anywhere; }
 .technical-review { border-top: 1px solid #4b5442; padding-top: 12px; }
 @media (max-width: 550px) { .musical-columns { grid-template-columns: 1fr; } .musical-columns > div + div { border-top: 1px solid #414c39; padding-top: 15px; } }
+.connect-shortcut { text-decoration: none; }
+#hardware-panel { scroll-margin-top: 24px; }
+#hardware-panel:focus { outline: 2px solid var(--amber); outline-offset: 6px; }
+.permission-hint { border-left: 2px solid var(--amber); padding-left: 10px; color: var(--cream); }

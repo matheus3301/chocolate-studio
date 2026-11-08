@@ -8,14 +8,14 @@ import { Empty, Icon, MessageFields, NameField, NumberField } from './components
 
 interface EditorProps {
   configuration: StudioConfiguration;
-  onChange: (configuration: StudioConfiguration) => void;
+  onChange: (configuration: StudioConfiguration) => boolean;
   groupId: string;
   onGroup: (id: string) => void;
   switchId: SwitchId;
   onSwitch: (id: SwitchId) => void;
   sequence: Sequence;
   onSequence: (sequence: Sequence) => void;
-  confirm: (title: string, action: () => void) => void;
+  confirm: (title: string, label: string, action: () => void) => void;
 }
 
 export function Pedalboard(props: EditorProps) {
@@ -24,7 +24,11 @@ export function Pedalboard(props: EditorProps) {
   const group = configuration.groups.find((entry) => entry.id === groupId) ?? configuration.groups[0]!;
   const pedal = group.switches[switchId];
   const messages = sequence === 'secondary' ? pedal.secondaryMessages ?? [] : sequence === 'primary' ? pedal.actions[0]?.messages ?? [] : pedal.actions.find((action) => action.gesture === sequence)?.messages ?? [];
-  function updateMessages(next: MidiMessage[]) { onChange(setMessages(configuration, group.id, switchId, sequence, next)); }
+  function updateMessages(next: MidiMessage[]) {
+    const updated = setMessages(configuration, group.id, switchId, sequence, next);
+    if (!onChange(updated)) return;
+    if (!next.length && sequence !== 'primary' && sequence !== 'secondary') onSequence('primary');
+  }
   function addMessage(type: 'pc' | 'cc') {
     const destination = configuration.destinations[0];
     const base = { channel: destination?.channel ?? 1, ...(destination ? { destinationId: destination.id } : {}) };
@@ -37,7 +41,7 @@ export function Pedalboard(props: EditorProps) {
     added.name = `${t('newGroup')} ${configuration.groups.length + 1}`;
     if (!duplicate) for (const key of SWITCH_IDS) added.switches[key] = { label: key, actions: [], behavior: 'single', secondaryMessages: [] };
     next.groups.push(added);
-    onChange(next);
+    if (!onChange(next)) return;
     onGroup(added.id);
     onSequence('primary');
   }
@@ -78,7 +82,7 @@ export function Pedalboard(props: EditorProps) {
       </article>)}</div>
       <div className="button-row"><button className="secondary" disabled={messages.length >= CONFIGURATION_LIMITS.messagesPerAction} onClick={() => addMessage('pc')}><Icon name="plus" />{t('addPc')}</button><button className="secondary" disabled={messages.length >= CONFIGURATION_LIMITS.messagesPerAction} onClick={() => addMessage('cc')}><Icon name="plus" />{t('addCc')}</button></div>
       <p className="helper">{t('zeroBased')} {t('gesturesHint')}</p>
-      <details className="group-settings"><summary>{t('groupName')}</summary><NameField label={t('groupName')} value={group.name} onChange={(name) => onChange(editGroup(configuration, group.id, (next) => { next.name = name; }))} /><div className="button-row"><button className="text-button" disabled={configuration.groups.length >= CONFIGURATION_LIMITS.groups} onClick={() => addGroup(true)}>{t('duplicateGroup')}</button><button className="text-button danger" disabled={configuration.groups.length <= 1} onClick={() => confirm(t('confirmRemoveGroup'), () => { onChange({ ...configuration, groups: configuration.groups.filter((entry) => entry.id !== group.id) }); onGroup(configuration.groups.find((entry) => entry.id !== group.id)!.id); onSequence('primary'); })}>{t('removeGroup')}</button></div></details>
+      <details className="group-settings"><summary>{t('groupName')}</summary><NameField label={t('groupName')} value={group.name} onChange={(name) => onChange(editGroup(configuration, group.id, (next) => { next.name = name; }))} /><div className="button-row"><button className="text-button" disabled={configuration.groups.length >= CONFIGURATION_LIMITS.groups} onClick={() => addGroup(true)}>{t('duplicateGroup')}</button><button className="text-button danger" disabled={configuration.groups.length <= 1} onClick={() => confirm(t('confirmRemoveGroup'), t('removeGroup'), () => { onChange({ ...configuration, groups: configuration.groups.filter((entry) => entry.id !== group.id) }); onGroup(configuration.groups.find((entry) => entry.id !== group.id)!.id); onSequence('primary'); })}>{t('removeGroup')}</button></div></details>
     </section>
   </>;
 }
@@ -95,7 +99,7 @@ export function Presets({ configuration, onChange, groupId, switchId, sequence, 
     {!configuration.presets.length && <Empty title={t('noPresets')} detail={t('noPresetsHint')} />}
     <div className="library-grid">{filtered.map((preset) => <article className="panel preset-card" key={preset.id}><span className="eyebrow">PC {String(preset.program).padStart(3, '0')}</span><NameField label={t('presetName')} value={preset.name} onChange={(name) => updatePreset(preset.id, { name })} />
       <MessageFields message={{ ...preset, type: 'pc' }} destinations={configuration.destinations} onChange={(message) => { if (message.type !== 'pc') return; const { type: _, ...reference } = message; const next: Preset = { ...reference, id: preset.id, name: preset.name }; onChange({ ...configuration, presets: configuration.presets.map((entry) => entry.id === preset.id ? next : entry) }); }} />
-      <div className="button-row"><button className="secondary" onClick={() => confirm(t('confirmPreset'), () => onChange(applyPreset(configuration, selected.id, switchId, sequence, preset)))}>{t('usePreset')}<Icon name="arrow" /></button><button className="text-button danger" onClick={() => onChange({ ...configuration, presets: configuration.presets.filter((entry) => entry.id !== preset.id) })}>{t('remove')}</button></div>
+      <div className="button-row"><button className="secondary" onClick={() => confirm(t('confirmPreset'), t('usePreset'), () => onChange(applyPreset(configuration, selected.id, switchId, sequence, preset)))}>{t('usePreset')}<Icon name="arrow" /></button><button className="text-button danger" onClick={() => onChange({ ...configuration, presets: configuration.presets.filter((entry) => entry.id !== preset.id) })}>{t('remove')}</button></div>
     </article>)}</div></>;
 }
 

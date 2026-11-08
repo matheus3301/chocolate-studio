@@ -33,8 +33,8 @@ export function NumberField({ label, value, min = 0, max = 127, onChange }: { la
     }} onBlur={() => { if (!valid) setText(String(value)); }} /></label>;
 }
 
-export function NameField({ label, value, max = 128, onChange, className = '' }: { label: string; value: string; max?: number; onChange: (value: string) => void; className?: string }) {
-  return <label className={`field ${className}`}><span>{label}</span><input value={value} maxLength={max} required onChange={(event) => onChange(event.currentTarget.value)} /></label>;
+export function NameField({ label, value, max = 128, onChange, className = '', disabled = false }: { label: string; value: string; max?: number; onChange: (value: string) => void; className?: string; disabled?: boolean }) {
+  return <label className={`field ${className}`}><span>{label}</span><input value={value} maxLength={max} required disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} /></label>;
 }
 
 export function DestinationField({ destinations, value, onChange }: { destinations: Destination[]; value: string | undefined; onChange: (id: string) => void }) {
