@@ -288,6 +288,7 @@ tbody th { font-weight: 400; color: #b5c09f; }
 .guided-shell .workspace-grid { display: block; max-width: 960px; }
 .guided-shell .device-aside { padding-top: 0; display: block; }
 .guided-content { width: 100%; max-width: 960px; margin-inline: auto; }
+main.guided-content[tabindex='-1']:focus { outline: none; }
 .guided-toolbar, .guided-step-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .guided-toolbar { margin-bottom: 24px; }
 .guided-status { color: var(--muted); font-size: 13px; }
@@ -296,8 +297,17 @@ tbody th { font-weight: 400; color: #b5c09f; }
 .guided-editor :is(.primary, .secondary, .text-button, select, summary), .guided-setup :is(button, select, input:not([type='radio']), summary) { min-height: 44px; }
 .guided-shell .icon-button { min-width: 44px; }
 .guided-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
-.setup-card, .guided-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; }
-.setup-card { max-width: 720px; margin: 24px auto; }
+.setup-card, .guided-panel, .connection-step { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; }
+.setup-card, .connection-step { width: 100%; max-width: 720px; margin: 24px auto; }
+.connection-step { display: grid; gap: 16px; }
+.connection-step > .page-heading { min-height: 0; padding-bottom: 0; }
+.connection-step > p, .connection-step .backup-safety > p { margin: 0; }
+.connection-step > button { justify-self: start; max-width: 100%; }
+.connection-step .port-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.connection-step .check { white-space: normal; min-height: 44px; }
+.connection-step .backup-safety { display: grid; justify-items: start; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.connection-step > footer { gap: 12px; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--line); }
+.connection-step > footer > .primary { margin-left: auto; }
 .setup-card h1 { font-size: 28px; letter-spacing: -.035em; margin: 0 0 12px; }
 .setup-card > header p { color: var(--muted); max-width: 54ch; margin-bottom: 28px; }
 .setup-card form > .guided-fields { display: grid; gap: 20px; }
@@ -362,7 +372,8 @@ tbody th { font-weight: 400; color: #b5c09f; }
   .guided-topbar-actions > .guided-menu { max-width: none; }
   .guided-shell .app-footer { padding: 16px; gap: 8px 16px; }
   .guided-main, .guided-shell main { padding: 20px 16px; }
-  .setup-card { margin: 12px 0; padding: 20px; }
+  .setup-card, .connection-step { margin: 12px auto; padding: 20px; }
+  .connection-step .port-fields { grid-template-columns: minmax(0, 1fr); }
   .guided-toolbar { margin-bottom: 20px; }
   .guided-navigation { gap: 12px; }
   .guided-nav-controls { width: 100%; }
@@ -372,7 +383,7 @@ tbody th { font-weight: 400; color: #b5c09f; }
 }
 @media (max-width: 360px) {
   .guided-main, .guided-shell main { padding-inline: 12px; }
-  .setup-card, .guided-inspector { padding: 16px; }
+  .setup-card, .guided-inspector, .connection-step { padding: 16px; }
   .guided-setup-fields { grid-template-columns: minmax(0, 1fr); }
   .guided-controller .controller-chassis { padding-inline: 4px; }
   .guided-controller .controller-deck { grid-template-columns: repeat(2, minmax(44px, 1fr)) minmax(32px, .6fr) repeat(2, minmax(44px, 1fr)); gap: 4px; }
