@@ -1,6 +1,6 @@
 # Beta qualification
 
-Release: `0.1.0-beta.4`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
+Release: `0.1.0-beta.5`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
 
 | Capability | Evidence and boundary |
 | --- | --- |
@@ -15,6 +15,37 @@ Release: `0.1.0-beta.4`. Tests performed 2026-11-07/08 on macOS 26.6.2. The cont
 | Factory reset / firmware update | Unsupported. No guessed reset or flashing command. |
 
 The baseline remains private. Its SHA-256 is `6d45d5b2655f363f892bda52bfd3ca56e5ae69188cba0bd29a110f5d13ed21b7`. A final independent read-only pass matched that original image exactly after the experiments. Proprietary executables/disassembly, personal configuration bytes, raw private traces and credentials are excluded from Git and runtime assets.
+
+## Mode-aware setup (beta.5)
+
+All thirteen observed CubeSuite modes are selectable after a read, with the read
+mode retained by default. Editors expose the corresponding fixed sequences,
+custom MIDI selectors, Advanced actions, keyboard shortcuts, independent Mix
+assignments and external interface endpoints. Unknown modes remain explicit and
+cannot be written until a supported mode is chosen. Explicit scalar intent is
+not overridden by legacy group-count inference.
+
+[Experiment 006](../research/experiments/006-operating-modes.md) qualifies all
+thirteen mode values, twenty globals and actual compiled keyboard/Mix/interface
+write plans through full native readback and restoration. The Chrome wizard
+also passed PC-to-custom-keyboard plus Ctrl+A, full readback and UI restoration.
+An independent final native read confirmed the original image byte for byte.
+
+Browser checks exercised every mode screen, PT/EN, the single-action tap/hold
+editor, pending/invalid shortcuts, Mix per-switch types, external interface,
+project export/import and retained independent mode data. Screens at 320, 390,
+830 and 1280px were inspected, including open project controls, long names and
+errors; no horizontal document overflow was observed. Export key ordering no
+longer creates false musical-review changes.
+
+343 tests, strict typecheck and the production image build passed. The image
+was rebuilt with fresh base pulls and ran healthy as UID/GID 101:101 with a
+read-only root, writable `/tmp`, dropped capabilities and no new privileges.
+Size: 13,908,911 bytes (+46,962 from beta.4). Health, homepage, JavaScript assets,
+SPA fallback, missing-asset 404s, CSP and Web MIDI policy passed local HTTP checks.
+Production dependency audit reported zero known vulnerabilities. Trivy and Docker
+Scout were unavailable, so no image vulnerability scan is claimed. The main
+JavaScript asset is 686.55 kB; Vite's bundle-size advisory remains open.
 
 ## Guided configuration (beta.4)
 

@@ -101,6 +101,26 @@ Value. The three data/value fields range from 0 to 127. A dedicated patch and
 decoder now model these fields; the obsolete typed-message interface path is
 rejected. The first/last endpoint case above verifies this corrected byte layout.
 
+## Chrome wizard roundtrip
+
+The real Web MIDI adapter was exercised from the localhost application in Chrome:
+
+1. Select the confirmed SINCO input/output, qualify identity and read the complete
+   original. The wizard correctly displays Program Change A as the current mode.
+2. Explicitly choose Custom Keyboard, assign Ctrl+A to group 1/A and review both
+   the mode transition and the named shortcut.
+3. Save through the UI. The adapter acknowledges the write and compares the full
+   readback before displaying configuration saved and checked.
+4. Choose “Test later”; no physical-key result is claimed.
+5. Restore the original raw backup through the UI and require verified readback.
+6. Disconnect Chrome. An independent native read returns all 23,646 original
+   bytes, mode 0, SHA-256
+   `6d45d5b2655f363f892bda52bfd3ca56e5ae69188cba0bd29a110f5d13ed21b7`.
+
+The modified image hash begins `c21210c4a194ece5`; the final read had zero
+differences from the original. Private evidence includes
+`modes-browser-write-verified.png` and `modes-final-independent.jsonl`.
+
 ## Limits of the evidence
 
 These results establish byte storage, acknowledgement, exact readback and

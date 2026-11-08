@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-beta.5 — 2026-11-08 UTC
+
+- Added an explicit operating-mode step after reading the Chocolate. All thirteen observed CubeSuite modes are available; continuing keeps the mode read from the device.
+- Added mode-specific sequential PC/CC ranges, custom command selectors, keyboard shortcuts, mixed MIDI/keyboard/page actions, and external interface settings. Advanced and Mix retain independent assignments.
+- Simplified the workbench: compact project menu, bounded controller illustration, one tap/hold action form at a time, and responsive settings. Fixed sequences show display numbers such as 000–003 and 004–007.
+- Device review describes the actual mode, settings, shortcuts and endpoint changes. Inactive drafts do not appear as device writes. Explicit saved limits take precedence over inferred legacy defaults.
+- Corrected the external Interface record layout, preserved unknown bytes and modes, and reconciled metadata IDs before writes. JSON import/export retains mode-specific configuration.
+- Qualified all thirteen mode values, twenty global fields, keyboard/Mix/interface storage, and a Chrome wizard mode/shortcut write with full readback and restoration. Physical MIDI/HID output and power-cycle behavior remain separate, unverified checks; see [experiment 006](research/experiments/006-operating-modes.md).
+
+## 0.1.0-beta.4 — 2026-11-08 UTC
+
+- Introduced connection/read/backup setup and equipment-driven musical actions with a generic profile catalog, initially Line 6 M5.
+- Added guided tap/hold editing, JSON v2 action metadata with v1 compatibility, change review and separate physical-result confirmation.
+- Verified the guided Chrome write/readback/restore flow. This version still assumed Advanced mode; beta.5 replaces that limitation.
+
 ## 0.1.0-beta.3 — 2026-11-08 UTC
 
 - Replaced the four tall stompbox cards with a single horizontal Chocolate Plus controller illustration: A/B, central editor-selection display, C/D.
