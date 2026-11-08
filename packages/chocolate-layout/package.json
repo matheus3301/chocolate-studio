@@ -1,0 +1,15 @@
+{
+  "name": "@chocolate-studio/chocolate-layout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "import": "./src/index.ts" }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": { "typescript": "7.0.2", "vitest": "5.1.0" }
+}
