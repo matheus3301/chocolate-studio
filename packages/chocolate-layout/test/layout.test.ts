@@ -51,13 +51,13 @@ describe('own statically derived FCP layout', () => {
   it('retains opaque/invalid records and reports raw values without clamping', () => {
     const image = new Uint8Array(FCP_SIZE);
     image[0] = 255;
-    image.set([1, 0, 2, 60, 127], 0x5e); // Observed Note ON type, not interpreted by this API.
+    image.set([1, 0, 9, 60, 127], 0x5e); // Unknown type must remain raw.
     image.set([1, 200, 4, 250, 249], 0x63); // Custom record; not a PC or CC.
     image.set([1, 16, 1, 200, 128], 0xae);
     const before = new Uint8Array(image);
     const decoded = decodeFcp(image);
     expect(decoded.mode).toBe(255);
-    expect(decoded.advancedGroups[0]!.switches.A.bankA.records[0]).toMatchObject({ interpretation: 'opaque', typeCode: 2, message: null });
+    expect(decoded.advancedGroups[0]!.switches.A.bankA.records[0]).toMatchObject({ interpretation: 'invalid', typeCode: 9, message: null });
     expect(decoded.advancedGroups[0]!.switches.A.bankA.records[1]).toMatchObject({ interpretation: 'opaque', typeCode: 4, data1: 250, message: null });
     expect(decoded.advancedGroups[0]!.switches.A.bankB.records[0]).toMatchObject({ interpretation: 'invalid', channelIndex: 16, message: null });
     expect(decoded.issues).toContainEqual({ offset: 0xaf, field: 'channelIndex', value: 16, min: 0, max: 15 });
@@ -73,9 +73,9 @@ describe('own statically derived FCP layout', () => {
     expect(advancedSwitchOffset(0, 'A')).toBe(0x5d);
     expect(advancedSwitchOffset(7, 'D')).toBe(0x32dc);
     expect(messageOffset({ scope: 'advanced', groupIndex: 7, switchId: 'D', bank: 'B', slot: 15 })).toBe(0x3378);
-    expect(messageOffset({ scope: 'interface', slot: 15 })).toBe(0x58);
+    expect(messageOffset({ scope: 'mixed', groupIndex: 0, switchId: 'A', bank: 'A', slot: 0 })).toBe(0x34cb);
     for (const groupIndex of [-1, 8, 0.5, NaN]) expect(() => advancedSwitchOffset(groupIndex, 'A')).toThrow();
-    for (const slot of [-1, 16, 0.5, NaN]) expect(() => messageOffset({ scope: 'interface', slot })).toThrow();
+    for (const slot of [-1, 16, 0.5, NaN]) expect(() => messageOffset({ scope: 'advanced', groupIndex: 0, switchId: 'A', bank: 'A', slot })).toThrow();
   });
 });
 
@@ -114,7 +114,7 @@ describe('validated byte preserving field patches', () => {
     const image = patternedImage();
     const expected = new Uint8Array(image);
     expected[0x58] = 0;
-    const result = applyFcpPatches(image, [{ kind: 'clearMessage', location: { scope: 'interface', slot: 15 } }]);
+    const result = applyFcpPatches(image, [{ kind: 'clearInterfaceAssignment', slot: 15 }]);
     expect(result.bytes).toEqual(expected);
     expect(result.footprints[0]).toMatchObject({ fieldRange: { offset: 0x58, length: 1 }, cubeSuiteRange: { offset: 0x0d, length: 80 } });
   });
@@ -142,12 +142,12 @@ describe('validated byte preserving field patches', () => {
     { kind: 'field', field: 'mode', value: 13 },
     { kind: 'field', field: 'polarity', value: 2 },
     { kind: 'switchMode', groupIndex: 0, switchId: 'A', modeCode: 5 },
-    { kind: 'message', location: { scope: 'interface', slot: 0 }, message: { type: 'pc', channel: 0, program: 0 } },
-    { kind: 'message', location: { scope: 'interface', slot: 0 }, message: { type: 'pc', channel: 1, program: 128 } },
-    { kind: 'message', location: { scope: 'interface', slot: 0 }, message: { type: 'cc', channel: 1, controller: -1, value: 0 } },
-    { kind: 'message', location: { scope: 'interface', slot: 0 }, message: { type: 'cc', channel: 1, controller: 0, value: 128 } },
+    { kind: 'interfaceAssignment', slot: 0, assignment: { channel: 0, data: 0, releaseValue: 0, pressValue: 0 } },
+    { kind: 'interfaceAssignment', slot: 0, assignment: { channel: 1, data: 128, releaseValue: 0, pressValue: 0 } },
+    { kind: 'interfaceAssignment', slot: 0, assignment: { channel: 1, data: 0, releaseValue: -1, pressValue: 0 } },
+    { kind: 'interfaceAssignment', slot: 0, assignment: { channel: 1, data: 0, releaseValue: 0, pressValue: 128 } },
     { kind: 'message', location: { scope: 'advanced', groupIndex: 0, switchId: 'A', bank: 'C', slot: 0 }, message: { type: 'pc', channel: 1, program: 0 } },
-    { kind: 'message', location: { scope: 'interface', slot: 0 }, message: { type: 'pc', channel: 1, program: 0, extra: true } },
+    { kind: 'message', location: { scope: 'advanced', groupIndex: 0, switchId: 'A', bank: 'A', slot: 0 }, message: { type: 'pc', channel: 1, program: 0, extra: true } },
   ])('rejects invalid patch %# atomically', (invalid) => {
     const image = patternedImage();
     const before = new Uint8Array(image);

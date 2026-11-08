@@ -70,6 +70,27 @@ export function getControllerMode(raw: number): ControllerModeDefinition | undef
 
 const index = (max: number) => z.number().int().min(0).max(max);
 const flag = index(1);
+export const interfaceAssignmentSchema = z.strictObject({
+  slot: index(15), channel: z.number().int().min(1).max(16),
+  data: index(127), releaseValue: index(127), pressValue: index(127),
+});
+export const keyboardCombinationSchema = z.strictObject({
+  modifier1: index(4), modifier2: index(4), key: index(62),
+}).superRefine((value, ctx) => {
+  if (value.modifier1 !== 0 && value.modifier1 === value.modifier2) {
+    ctx.addIssue({ code: 'custom', path: ['modifier2'], message: 'Keyboard modifiers must differ' });
+  }
+});
+export const keyboardAssignmentSchema = z.strictObject({
+  groupIndex: index(5), switchId: z.enum(['A', 'B', 'C', 'D']), combination: keyboardCombinationSchema,
+});
+export const mixedAssignmentSchema = z.strictObject({
+  groupIndex: index(5), switchId: z.enum(['A', 'B', 'C', 'D']), typeCode: index(2),
+  turnerKeyIndex: index(9).optional(), combination: keyboardCombinationSchema.optional(),
+});
+export type KeyboardAssignment = z.infer<typeof keyboardAssignmentSchema>;
+export type MixedAssignment = z.infer<typeof mixedAssignmentSchema>;
+export type InterfaceAssignment = z.infer<typeof interfaceAssignmentSchema>;
 /** Optional raw fields are explicit edit intent; omitted fields MUST NOT generate writes. */
 export const controllerSettingsSchema = z.strictObject({
   // Unknown read modes remain explicit raw bytes, never omitted into legacy mode 3.
@@ -85,9 +106,49 @@ export const controllerSettingsSchema = z.strictObject({
   advancedMaxGroupIndex: index(7).optional(), advancedGroupIndex: index(7).optional(),
   keyboardGroupIndex: index(5).optional(), mixGroupIndex: index(5).optional(),
   polarity: flag.optional(), bankMidi: flag.optional(), pcDisplay: flag.optional(),
+  keyboardAssignments: z.array(keyboardAssignmentSchema).max(24).optional(),
+  mixedAssignments: z.array(mixedAssignmentSchema).max(24).optional(),
+  interfaceAssignments: z.array(interfaceAssignmentSchema).max(16).optional(),
+  clearedInterfaceSlots: z.array(index(15)).max(16).optional(),
+}).superRefine((value, ctx) => {
+  for (const key of ['keyboardAssignments', 'mixedAssignments'] as const) {
+    const seen = new Set<string>();
+    value[key]?.forEach((assignment, position) => {
+      const coordinate = `${assignment.groupIndex}/${assignment.switchId}`;
+      if (seen.has(coordinate)) ctx.addIssue({ code: 'custom', path: [key, position], message: 'Duplicate switch coordinate' });
+      seen.add(coordinate);
+    });
+  }
+  const slots = new Set<number>();
+  value.interfaceAssignments?.forEach((entry, position) => {
+    if (slots.has(entry.slot)) ctx.addIssue({ code: 'custom', path: ['interfaceAssignments', position, 'slot'], message: 'Duplicate interface slot' });
+    slots.add(entry.slot);
+  });
+  value.clearedInterfaceSlots?.forEach((slot, position) => {
+    if (slots.has(slot)) ctx.addIssue({ code: 'custom', path: ['clearedInterfaceSlots', position], message: 'Duplicate or overlapping interface slot' });
+    slots.add(slot);
+  });
 });
 export type ControllerSettings = z.infer<typeof controllerSettingsSchema>;
 /** Legacy draft interpretation ONLY. Connected read views must use the actual raw mode. */
 export function effectiveControllerMode(configuration: { controller?: ControllerSettings | undefined }): number {
   return configuration.controller?.mode ?? 3;
 }
+
+/** Selector labels, not MIDI statuses or proof of emitted messages. */
+export const CONTROLLER_CUSTOM_COMMANDS = Object.freeze([
+  ...Array.from({ length: 128 }, (_, index) => Object.freeze({ index, kind: 'cc' as const, label: text(`CC ${index}`, `CC ${index}`) })),
+  ...[
+    ['channelPressure', 'Mono aftertouch', 'Pressão do canal'],
+    ['start', 'Start current sequence', 'Iniciar sequência'],
+    ['stop', 'Stop current sequence', 'Parar sequência'],
+    ['continue', 'Continue where stopped', 'Continuar sequência'],
+    ['pinReceiver', 'Pin Receiver', 'Pin Receiver'],
+    ['reset', 'Restore power-up state', 'Restaurar estado inicial'],
+  ].map(([kind, en, pt], index) => Object.freeze({ index: index + 128, kind: kind!, label: text(en!, pt!) })),
+]);
+export const CONTROLLER_INTERFACE_COMMANDS = Object.freeze([
+  ...CONTROLLER_CUSTOM_COMMANDS.slice(0, 128),
+  Object.freeze({ index: 128, kind: 'selectPreset', label: text('Select preset', 'Selecionar preset') }),
+  Object.freeze({ index: 129, kind: 'channelPressure', label: text('Mono aftertouch', 'Pressão do canal') }),
+]);

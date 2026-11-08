@@ -219,6 +219,37 @@ supported modes 0–12. Unknown modes must block writes until explicit selection
 not disappear into the legacy fallback. Other scalar settings reject invalid
 values. Retained full FCP backups preserve bytes outside validated edit intent.
 
+`groups` always contains the Advanced MIDI draft. Optional `mixedGroups` holds
+the independent Mix MIDI draft (at most six groups), with the same switch/action/
+destination/profile validation. Changing `controller.mode` never converts one
+region into the other. Missing `mixedGroups` means no Mix edit intent, including
+when a legacy or fixed-PC draft switches to Mix. JSON retains both regions and
+counts their messages together toward the application resource limit.
+
+Additional controller edit intent:
+- `keyboardAssignments`: up to 24 `{groupIndex, switchId, combination}` entries.
+- `mixedAssignments`: up to 24 `{groupIndex, switchId, typeCode, turnerKeyIndex?,
+  combination?}` entries. MIDI sequences/behaviors belong only to `mixedGroups`.
+- `interfaceAssignments`: up to 16 `{slot, channel, data, releaseValue, pressValue}`
+  pedal endpoint records; channel 1–16, remaining values 0–127. These are NOT
+  PC/CC typed MIDI records.
+- `clearedInterfaceSlots`: unique slots 0–15 whose enabled byte should be cleared;
+  no overlap with interfaceAssignments. Omitted slots remain untouched.
+
+Coordinates are unique per array. Keyboard combinations use modifier menu
+indexes 0–4 (None/Ctrl/Shift/Alt/Win/Command), key index 0–62 and distinct nonzero
+modifiers. No generic MIDI messages are fabricated from keyboard/Turner intent.
+`CONTROLLER_CUSTOM_COMMANDS` and `CONTROLLER_INTERFACE_COMMANDS` expose bilingual
+selector labels, including special indexes 128–133 and 128–129 respectively.
+These are menu indexes, not MIDI status bytes. Unknown firmware semantics of
+CubeSuite's literal “Pin Receiver” name and visual flags remain in technical
+provenance; their meanings are not guessed by the domain.
+
+Stored `advancedGroupIndex`, `keyboardGroupIndex` and `mixGroupIndex` are
+explicit current/initial group settings, independent from local editor selection.
+The installed CubeSuite Advanced tooltip says E/F change groups, while manuals
+disagree; physical group navigation remains unqualified, not disabled by the schema.
+
 
 ## Checks
 
