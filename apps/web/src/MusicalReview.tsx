@@ -27,7 +27,7 @@ export function MusicalReview({ before, after }: { before: StudioConfiguration; 
   function pedalSummary(pedal: SwitchConfiguration | undefined, configuration: StudioConfiguration) {
     if (!pedal) return <p>{t('none')}</p>;
     return <><p className="review-behavior">{pedal.label} · {t(pedal.behavior ?? 'single')}</p>
-      <div className="review-sequence"><strong>{t('primary')}</strong>{pedal.actions[0]?.messages.length ? <ol>{pedal.actions[0].messages.map((message, index) => <li key={index}>{messageSummary(message, configuration)}</li>)}</ol> : <p>—</p>}</div>
+      <div className="review-sequence"><strong>{t('primary')} · {t(pedal.actions[0]?.gesture ?? 'press')}</strong>{pedal.actions[0]?.messages.length ? <ol>{pedal.actions[0].messages.map((message, index) => <li key={index}>{messageSummary(message, configuration)}</li>)}</ol> : <p>—</p>}</div>
       <div className="review-sequence"><strong>{t('secondary')}</strong>{pedal.secondaryMessages?.length ? <ol>{pedal.secondaryMessages.map((message, index) => <li key={index}>{messageSummary(message, configuration)}</li>)}</ol> : <p>—</p>}</div>
       {pedal.actions.slice(1).map((action) => <div className="review-sequence" key={action.gesture}><strong>{t(action.gesture)}</strong><ol>{action.messages.map((message, index) => <li key={index}>{messageSummary(message, configuration)}</li>)}</ol></div>)}</>;
   }

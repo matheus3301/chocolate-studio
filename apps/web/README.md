@@ -59,3 +59,10 @@ The worker may run compilation, logic/storage checks and an HTTP asset smoke.
 Visual, keyboard, mobile, Web MIDI permission/device, physical pedal and power-cycle
 validation are coordinator-owned. There is no service worker/PWA: “runs in your
 browser” does not promise an offline reload after the site is closed.
+
+Worker verification on Node 22.22.3: frozen install and `pnpm check` passed
+(119 tests, including five app storage/sequence regressions). A disposable smoke
+loaded the real app modules, saved/reopened/replaced/restored Bank B edits using
+fake-indexeddb; production HTML/JS/CSS also passed an HTTP smoke. No browser,
+hardware, container, or deployment was exercised. Vite reports a 530.62 kB main
+chunk (161.35 kB gzip); this is a build warning, not a suppressed gate.
