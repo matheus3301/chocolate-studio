@@ -6,9 +6,11 @@
   "packageManager": "pnpm@11.25.0",
   "engines": { "node": ">=22.22.0" },
   "scripts": {
-    "test": "vitest run",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "build": "pnpm -r --if-present build"
+    "test": "pnpm run test:unit",
+    "test:unit": "vitest run",
+    "typecheck": "pnpm --recursive --filter './packages/**' --filter './apps/**' --fail-if-no-match run typecheck",
+    "build": "pnpm --recursive --filter './packages/**' --filter './apps/**' --fail-if-no-match run build",
+    "check": "pnpm run typecheck && pnpm run test:unit && pnpm run build"
   },
   "devDependencies": {
     "typescript": "7.0.2",
