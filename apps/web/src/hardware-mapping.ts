@@ -2,6 +2,7 @@ import { decodeFcp, applyFcpPatches } from '@chocolate-studio/chocolate-layout';
 import type { DecodedBank, FcpPatch, PcCcMessage } from '@chocolate-studio/chocolate-layout';
 import { SWITCH_IDS, studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { MidiMessage, StudioConfiguration, SwitchBehavior } from '@chocolate-studio/midi';
+import type { ControllerReadMetadata } from './hardware.js';
 
 const behaviors: SwitchBehavior[] = ['single', 'alternate', 'momentary', 'long', 'shortLong'];
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -20,12 +21,13 @@ const known = (bank: DecodedBank) => bank.records.flatMap(record => record.messa
 /** Decode supported advanced banks without treating hidden/unknown bytes as empty data. */
 export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfiguration) {
   const decoded = decodeFcp(bytes);
+  const matchedDestinations = new Set<string>();
   const warnings: string[] = [];
   if (decoded.mode !== 3) warnings.push('hardware.advancedInactive');
   if (decoded.issues.length) warnings.push('hardware.unrecognizedFields');
   const count = Math.min(8, Math.max(1, decoded.globals.advancedMaxGroupIndex + 1));
   const configuration: StudioConfiguration = {
-    formatVersion: 1, id: metadata?.id ?? 'chocolate-configuration', name: metadata?.name ?? 'Chocolate Plus',
+    formatVersion: metadata?.formatVersion ?? 1, id: metadata?.id ?? 'chocolate-configuration', name: metadata?.name ?? 'Chocolate Plus',
     destinations: structuredClone(metadata?.destinations ?? []), presets: structuredClone(metadata?.presets ?? []),
     groups: decoded.advancedGroups.slice(0, count).map((group, index) => {
       const previous = metadata?.groups[index];
@@ -35,19 +37,51 @@ export function configurationFromBytes(bytes: Uint8Array, metadata?: StudioConfi
         const primary = known(sw.bankA); const secondary = known(sw.bankB);
         if ([...sw.bankA.records, ...sw.bankB.records].some(record => record.enabled && !record.message)) warnings.push('hardware.unknownMessages');
         const previousSwitch = previous?.switches[id];
-        // Keep bank-select grouping and destination references when the raw result agrees.
-        const primaryMessages = previousSwitch?.actions.length === 1 && same(expand(previousSwitch.actions[0]!.messages), primary)
-          ? structuredClone(previousSwitch.actions[0]!.messages) : primary;
-        const secondaryMessages = previousSwitch && same(expand(previousSwitch.secondaryMessages ?? []), secondary)
-          ? structuredClone(previousSwitch.secondaryMessages ?? []) : secondary;
-        switches[id] = { label: previousSwitch?.label ?? id,
+        const primaryMatches = previousSwitch?.actions.length === 1 &&
+          !sw.bankA.records.some(record => record.enabled && !record.message) &&
+          same(expand(previousSwitch.actions[0]!.messages), primary);
+        const secondaryMatches = !!previousSwitch &&
+          !sw.bankB.records.some(record => record.enabled && !record.message) &&
+          same(expand(previousSwitch.secondaryMessages ?? []), secondary);
+        const primaryMessages: MidiMessage[] = primaryMatches ? structuredClone(previousSwitch.actions[0]!.messages) : primary;
+        const secondaryMessages: MidiMessage[] = secondaryMatches ? structuredClone(previousSwitch.secondaryMessages ?? []) : secondary;
+        const retained = previousSwitch ? structuredClone(previousSwitch) : { label: id, actions: [] };
+        if (retained.actionBindings) {
+          if (!primaryMatches) delete retained.actionBindings.primary;
+          if (!secondaryMatches) delete retained.actionBindings.secondary;
+          if (!retained.actionBindings.primary && !retained.actionBindings.secondary) delete retained.actionBindings;
+        }
+        for (const message of [...(primaryMatches ? primaryMessages : []), ...(secondaryMatches ? secondaryMessages : [])]) {
+          if (message.destinationId) matchedDestinations.add(message.destinationId);
+        }
+        switches[id] = { ...retained, label: previousSwitch?.label ?? id,
           behavior: behaviors[sw.modeCode] ?? 'single',
           actions: primaryMessages.length ? [{ gesture: 'press', messages: primaryMessages }] : [], secondaryMessages };
       }
       return { id: previous?.id ?? `device-group-${index + 1}`, name: previous?.name ?? `Group ${index + 1}`, switches };
     }),
   };
-  return { configuration: studioConfigurationSchema.parse(configuration), warnings: [...new Set(warnings)] };
+  for (const destination of configuration.destinations) {
+    if (!matchedDestinations.has(destination.id)) delete destination.profile;
+  }
+  return { configuration: studioConfigurationSchema.parse(configuration), warnings: [...new Set(warnings)],
+    controller: readControllerMetadata(bytes) };
+}
+
+/** Own observed raw0 = Program change A; raw3 = the mapped eight-group Advanced mode. */
+export function readControllerMetadata(bytes: Uint8Array): ControllerReadMetadata {
+  const decoded = decodeFcp(bytes);
+  const bounded = (value: number, maximum: number): number | null => Number.isInteger(value) && value >= 0 && value <= maximum ? value : null;
+  return {
+    rawMode: decoded.mode,
+    modeKind: decoded.mode === 0 ? 'program-change' : decoded.mode === 3 ? 'advanced' : 'unclassified',
+    displayStyle: decoded.mode === 0 ? 'pc-number' : 'unobserved',
+    storedAdvancedGroupIndex: bounded(decoded.globals.advancedGroupIndex, 7),
+    storedAdvancedMaxGroupIndex: bounded(decoded.globals.advancedMaxGroupIndex, 7),
+    pcDisplayEnabled: bounded(decoded.globals.pcDisplay, 1) === null ? null : decoded.globals.pcDisplay === 1,
+    pcMaxGroupIndex: bounded(decoded.globals.pcMaxGroupIndex, 31),
+    ccMaxGroupIndex: bounded(decoded.globals.ccMaxGroupIndex, 31),
+  };
 }
 
 /** Patch the original image. Unsupported intent rejects the complete plan. */

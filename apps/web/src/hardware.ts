@@ -14,12 +14,24 @@ export interface RawBackup {
   capturedAt: number;
   identity: DeviceIdentity;
 }
+/** Stored configuration facts, never telemetry from the physical display/footswitches. */
+export interface ControllerReadMetadata {
+  rawMode: number;
+  modeKind: 'program-change' | 'advanced' | 'unclassified';
+  displayStyle: 'pc-number' | 'unobserved';
+  storedAdvancedGroupIndex: number | null;
+  storedAdvancedMaxGroupIndex: number | null;
+  pcDisplayEnabled: boolean | null;
+  pcMaxGroupIndex: number | null;
+  ccMaxGroupIndex: number | null;
+}
 export interface DeviceRead {
   /** Mapped intent only; bytes not represented here remain in rawBackup. */
   configuration: StudioConfiguration;
   rawBackup: RawBackup;
   readAt: number;
   warnings: string[];
+  controller?: ControllerReadMetadata;
 }
 export interface VerifiedDeviceRead extends DeviceRead {
   /** Set only after ACK plus complete reread comparison, never on send alone. */
@@ -45,6 +57,11 @@ export interface HardwareEvent {
   bytes?: number[];
 }
 export type HardwareStatus = 'unavailable' | 'disconnected' | 'requesting' | 'connecting' | 'connected' | 'busy' | 'error';
+export interface OriginalBackupConfirmation {
+  baselineId: string;
+  sha256: string;
+  method: 'stored' | 'downloaded';
+}
 export interface HardwareSnapshot {
   status: HardwareStatus;
   /** Human-readable reason/error. Never contain private configuration dumps. */
@@ -60,6 +77,9 @@ export interface HardwareSnapshot {
   baseline: RawBackup | null;
   /** Oldest first, bounded to HARDWARE_HISTORY_LIMIT by the adapter. */
   history: HardwareEvent[];
+  connectionEpoch?: number;
+  /** Exact first-session image persisted, or explicitly acknowledged after download. */
+  backupSafety?: OriginalBackupConfirmation | null;
 }
 
 /**
@@ -79,6 +99,8 @@ export interface HardwareService {
   disconnect(): Promise<void>;
   /** Complete read and raw backup before exposing mapped observed state. */
   read(): Promise<DeviceRead>;
+  /** UI/storage attestation; must match the adapter-owned original baseline. */
+  acknowledgeBackup(confirmation: OriginalBackupConfirmation): Promise<void>;
   /** Preserve unknown bytes; reject every unsupported requested field. No MIDI write. */
   preview(configuration: StudioConfiguration): Promise<WritePreview>;
   /** Consume current preview, patch serially, require success ACK and full reread. */
@@ -95,6 +117,7 @@ const unavailableSnapshot: HardwareSnapshot = {
   status: 'unavailable', reason: null, inputs: [], outputs: [], selection: null,
   identity: null, capabilities: { read: false, preview: false, write: false, restore: false },
   observed: null, verified: null, baseline: null, history: [],
+  connectionEpoch: 0, backupSafety: null,
 };
 /** Honest offline boundary until the parent injects the real transport. */
 export const unavailableHardware: HardwareService = {
@@ -103,6 +126,7 @@ export const unavailableHardware: HardwareService = {
   async requestPorts() { throw new HardwareUnavailableError(); },
   async connect() { throw new HardwareUnavailableError(); },
   async disconnect() { throw new HardwareUnavailableError(); },
+  async acknowledgeBackup() { throw new HardwareUnavailableError(); },
   async read() { throw new HardwareUnavailableError(); },
   async preview() { throw new HardwareUnavailableError(); },
   async write() { throw new HardwareUnavailableError(); },
