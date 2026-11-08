@@ -199,6 +199,27 @@ hardware accepted or retained anything. Templates remain generic.
 References: [Zod 4.6.7 API](https://github.com/colinhacks/zod/blob/v4.6.7/packages/docs/content/api.mdx),
 [MIDI Association message summary](https://midi.org/summary-of-midi-1-0-messages).
 
+## Controller operating modes
+
+`CONTROLLER_MODES` describes all 13 installed CubeSuite mode bindings, with
+intent-led PT/EN labels and fixed versus editable assignment capabilities.
+The raw-to-label join comes from our own executable analysis, not UI order or
+the numbering in newer manuals. Raw 1 is sequential CC, despite CubeSuite's
+“Program change B” label. Raw 12 is Speaker, although CubeSuite's reload view
+clamps its selection to 11. See `chocolate-layout/MAPPING.md` for provenance.
+
+Configuration JSON v1/v2 optionally persists `controller: ControllerSettings`.
+Its raw scalar fields use the exact `FCP_FIELDS` names and zero-based indexes.
+Omitted fields are absent edit intent, never default writes. `effectiveControllerMode`
+interprets a truly absent draft mode as legacy Advanced (3); connected views
+must use the actual read mode. Persisted mode accepts any raw byte, preserving
+unknown incoming modes across saves. `getControllerMode` returns undefined for
+unknown modes; `controllerModeSchema` validates only explicitly selectable
+supported modes 0–12. Unknown modes must block writes until explicit selection,
+not disappear into the legacy fallback. Other scalar settings reject invalid
+values. Retained full FCP backups preserve bytes outside validated edit intent.
+
+
 ## Checks
 
 ```sh

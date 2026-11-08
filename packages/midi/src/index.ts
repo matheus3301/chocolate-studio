@@ -34,3 +34,10 @@ export {
 } from './equipment.js';
 export { applyEquipmentAction, clearEquipmentActionBinding } from './equipment-actions.js';
 export type { EquipmentSequence, ApplyEquipmentActionOptions } from './equipment-actions.js';
+export {
+  CONTROLLER_MODES, controllerModeSchema, controllerSettingsSchema,
+  getControllerMode, effectiveControllerMode,
+} from './controller.js';
+export type {
+  ControllerMode, ControllerModeDefinition, ControllerAssignment, ControllerSettings,
+} from './controller.js';

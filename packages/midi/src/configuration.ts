@@ -4,6 +4,7 @@ import type { ProgramChange } from './messages.js';
 import { equipmentActionInvocationSchema, equipmentProfileReferenceSchema } from './equipment-schema.js';
 import { compileEquipmentAction, getEquipmentProfile, sameMidiMessages } from './equipment.js';
 import { safeJsonTreeSchema } from './safe-json.js';
+import { controllerSettingsSchema } from './controller.js';
 
 /** Application resource limits, not claims about controller capabilities. */
 export const CONFIGURATION_LIMITS = Object.freeze({
@@ -90,6 +91,7 @@ const configurationShapeSchema = z.strictObject({
   destinations: z.array(destinationSchema).max(CONFIGURATION_LIMITS.destinations),
   groups: z.array(groupSchema).min(1).max(CONFIGURATION_LIMITS.groups),
   presets: z.array(presetSchema).max(CONFIGURATION_LIMITS.presets),
+  controller: controllerSettingsSchema.optional(),
 }).superRefine((value, ctx) => {
   const ids = new Set<string>([value.id]);
   const destinations = new Set(value.destinations.map((destination) => destination.id));
