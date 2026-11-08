@@ -74,3 +74,5 @@ draft. A rejected edit leaves the prior draft intact. Object key order does not
 make a saved draft dirty; message/group order still matters. Older file reads
 cannot reopen a cancelled or superseded review. The header connection shortcut
 focuses the hardware panel without requesting or bypassing browser permission.
+Numeric inputs restore the accepted draft value on blur, including numerically
+valid edits rejected by capacity validation; name fields remain fully controlled.

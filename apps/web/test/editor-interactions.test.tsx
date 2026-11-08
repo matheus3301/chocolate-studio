@@ -127,7 +127,7 @@ describe('aggregate message capacity', () => {
   });
 });
 
-it('rejects JSON byte overflow below the message ceiling and retains an exportable draft', async () => {
+it('rejects JSON byte overflow and restores accepted numeric/name displays at the valid byte boundary', async () => {
   const configuration = fullConfiguration();
   configuration.name = 'Música';
   const destinationId = 'd'.repeat(64);
@@ -154,6 +154,8 @@ it('rejects JSON byte overflow below the message ceiling and retains an exportab
     else high = middle - 1;
   }
   setCount(low);
+  const firstMessage = configuration.groups[0]!.switches.A.actions[0]!.messages[0]!;
+  if (firstMessage.type === 'pc') firstMessage.program = 0;
   let padding = maximum - 1 - encoder.encode(exportConfiguration(configuration)).byteLength;
   for (const named of [configuration, ...configuration.destinations, ...configuration.groups]) {
     const append = Math.min(padding, CONFIGURATION_LIMITS.nameLength - named.name.length);
@@ -163,14 +165,24 @@ it('rejects JSON byte overflow below the message ceiling and retains an exportab
   expect(padding).toBe(0);
   expect(low).toBeLessThan(CONFIGURATION_LIMITS.totalMessages);
   expect(encoder.encode(exportConfiguration(configuration)).byteLength).toBe(maximum - 1);
-  const { result } = renderHook(() => useStudio());
-  await waitFor(() => expect(result.current.loading).toBe(false));
-  act(() => { expect(result.current.setConfiguration(configuration)).toBe(true); });
-  const overflow = setMessages(configuration, configuration.groups[0]!.id, 'A', 'secondary', [{ type: 'pc', channel: 1, program: 0 }]);
-  act(() => { expect(result.current.setConfiguration(overflow)).toBe(false); });
-  expect(result.current.notice).toBe('limitReached');
-  expect(result.current.configuration.groups[0]!.switches.A.secondaryMessages).toBeUndefined();
-  expect(encoder.encode(exportConfiguration(result.current.configuration)).byteLength).toBe(maximum - 1);
+  await ready(configuration);
+  fireEvent.click(screen.getByRole('button', { name: en.secondary }));
+  fireEvent.click(screen.getByRole('button', { name: en.addPc }));
+  expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
+  fireEvent.click(screen.getByRole('button', { name: en.primary }));
+  const program = screen.getAllByLabelText(en.program)[0] as HTMLInputElement;
+  fireEvent.change(program, { target: { value: '127' } });
+  fireEvent.blur(program);
+  expect(program.value).toBe('0');
+  const name = screen.getByLabelText(en.projectName) as HTMLInputElement;
+  fireEvent.change(name, { target: { value: 'é'.repeat(128) } });
+  fireEvent.blur(name);
+  expect(name.value).toBe(configuration.name);
+  expect((screen.getByRole('button', { name: en.save }) as HTMLButtonElement).disabled).toBe(true);
+  const persisted = (await database.drafts.get('current'))!.configuration;
+  expect(persisted.groups[0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
+  expect(persisted.groups[0]!.switches.A.secondaryMessages).toBeUndefined();
+  expect(encoder.encode(exportConfiguration(persisted)).byteLength).toBe(maximum - 1);
 });
 
 it('returns to Bank A after removing the selected additional gesture and adds subsequent messages there', async () => {
