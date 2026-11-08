@@ -7,6 +7,7 @@ import { initialConfiguration, setMessages } from '../src/editor.js';
 import { App } from '../src/App.js';
 import { configurationFromBytes, configurationToBytes } from '../src/hardware-mapping.js';
 import { unavailableHardware } from '../src/hardware.js';
+import type { HardwareSnapshot } from '../src/hardware.js';
 import { MusicalReview } from '../src/MusicalReview.js';
 import { initializeLanguage } from '../src/i18n.js';
 import { database } from '../src/storage.js';
@@ -107,4 +108,31 @@ it('compares physical group positions once and ignores local names in device rev
   expect(screen.getAllByRole('heading', { name: /Group 1 \/ Pedal/ })).toHaveLength(1);
   expect(screen.getByText('On controller')).toBeTruthy();
   expect(screen.getByText('After saving')).toBeTruthy();
+});
+
+it('distinguishes restored controller mode from the retained local draft without replacing it', async () => {
+  const bytes = new Uint8Array(23646); bytes[0] = 10;
+  const mapped = configurationFromBytes(bytes);
+  await database.initialize(mapped.configuration);
+  const raw = { id: 'before-restore', sha256: 'synthetic-keyboard', bytes, capturedAt: 1,
+    identity: { name: 'Synthetic controller', manufacturer: null, model: null, firmware: null } };
+  let snapshot: HardwareSnapshot = { ...unavailableHardware.getSnapshot(), status: 'connected', identity: raw.identity,
+    selection: { inputId: 'in', outputId: 'out' }, capabilities: { read: true, write: false, preview: false, restore: false },
+    observed: { ...mapped, rawBackup: raw, readAt: 1 }, baseline: raw,
+    backupSafety: { baselineId: raw.id, sha256: raw.sha256, method: 'stored' } };
+  const listeners = new Set<() => void>();
+  const service = { ...unavailableHardware, getSnapshot: () => snapshot, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; }, acknowledgeBackup: async () => {} };
+  render(<App hardware={service} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Continue editing' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Use this mode' }));
+  expect(screen.getByText('Draft mode:')).toBeTruthy();
+  const restoredBytes = new Uint8Array(23646);
+  act(() => {
+    snapshot = { ...snapshot, observed: { ...configurationFromBytes(restoredBytes), rawBackup: { ...raw, id: 'restored', bytes: restoredBytes }, readAt: 2 } };
+    for (const listener of listeners) listener();
+  });
+  expect(screen.getByText('Mode last read from Chocolate: Change presets (PC)')).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Custom keyboard mode' })).toBeTruthy();
+  expect((await database.drafts.get('current'))!.configuration.controller!.mode).toBe(10);
 });

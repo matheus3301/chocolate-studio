@@ -408,6 +408,8 @@ main.guided-content[tabindex='-1']:focus { outline: none; }
 .mode-review-fields dt { color: var(--muted); }
 .mode-review-fields dd { margin: 0; font-variant-numeric: tabular-nums; }
 .preset-target-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.mode-context { font-size: 12px; color: var(--muted); }
+.guided-toolbar .mode-mismatch { margin-top: 4px; font-size: 12px; color: var(--amber); }
 .fixed-program-range { font: 24px ui-monospace, monospace; color: var(--amber); font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {
   .guided-topbar { padding: 16px; gap: 12px; }

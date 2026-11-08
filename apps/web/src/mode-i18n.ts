@@ -29,6 +29,7 @@ const en = {
   visual: 'VISUAL BEHAVIOR', bankMidi: 'Bank MIDI', cleared: 'Cleared', mixed: 'Mixed mode', keyboardGroup: 'Keyboard group',
   chooseGroup: 'Choose a group', chooseSwitch: 'Choose a switch', presetLibraryOnly: 'Keep and edit your preset library here. To assign a preset, choose a MIDI-action switch in Custom MIDI actions or Mixed mode.',
   distinctModifiers: 'Choose different modifiers, or set the second modifier to None.',
+  draftMode: 'Draft mode', readMode: 'Mode last read from Chocolate',
 };
 const pt: Record<keyof typeof en, string> = {
   title: 'Como você quer usar seu Chocolate?', intro: 'Mantenha o modo atual ou escolha outra forma de usar os quatro botões.',
@@ -59,6 +60,7 @@ const pt: Record<keyof typeof en, string> = {
   visual: 'VISUAL BEHAVIOR', bankMidi: 'Bank MIDI', cleared: 'Removida', mixed: 'Modo misto', keyboardGroup: 'Grupo do teclado',
   chooseGroup: 'Escolha um grupo', chooseSwitch: 'Escolha um botão', presetLibraryOnly: 'Guarde e edite sua biblioteca de presets aqui. Para atribuir um preset, escolha um botão de ação MIDI no modo Ações MIDI personalizadas ou no modo misto.',
   distinctModifiers: 'Escolha modificadores diferentes ou deixe o segundo como Nenhuma.',
+  draftMode: 'Modo do rascunho', readMode: 'Último modo lido do Chocolate',
 };
 
 export function useModeTranslation() {

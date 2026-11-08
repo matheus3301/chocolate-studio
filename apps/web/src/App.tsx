@@ -61,6 +61,7 @@ export function App({ hardware = unavailableHardware }: { hardware?: HardwareSer
   const currentRead = readCandidate && device.observed?.rawBackup.id === readCandidate.rawBackup.id && connected;
   const activeMode = effectiveControllerMode(studio.configuration);
   const selectedMode = getControllerMode(activeMode);
+  const readMode = connected ? device.observed?.controller?.rawMode ?? device.observed?.configuration.controller?.mode : undefined;
   const hasConfiguredDestination = studio.configuration.destinations.some(destination => destination.profile);
   useEffect(() => { heading.current?.focus(); }, [step, view]);
   useEffect(() => { setPhysicalResult('unconfirmed'); }, [studio.configuration, device.verified]);
@@ -125,7 +126,7 @@ export function App({ hardware = unavailableHardware }: { hardware?: HardwareSer
         {step === 'mode' && <ModeStep key={`${studio.configuration.id}:${studio.configuration.controller?.mode}`} configuration={studio.configuration} onChange={studio.setConfiguration} onComplete={afterMode} onBack={() => setStep(connected && readCandidate ? 'read' : 'connect')} disabled={externalLocked} {...(connected && device.observed?.controller ? { currentMode: device.observed.controller.rawMode } : {})} />}
         {step === 'equipment' && <EquipmentStep configuration={studio.configuration} onChange={studio.setConfiguration} onComplete={id => { setDestination(id); edit(); }} onBack={chooseMode} {...(destinationId ? { destinationId } : {})} disabled={externalLocked} />}
         {step === 'editor' && <>
-          <div className="guided-toolbar"><div><p className="guided-status" role="status">{connected ? device.observed ? s('flowConnected') : s('flowNoRead') : s('flowDraft')}</p><strong className="editor-mode">{selectedMode?.label[locale] ?? mt('unknown')}</strong></div><div className="button-row">
+          <div className="guided-toolbar"><div><p className="guided-status" role="status">{connected ? device.observed ? s('flowConnected') : s('flowNoRead') : s('flowDraft')}</p><p className="editor-mode"><span className="mode-context">{mt('draftMode')}: </span><strong>{selectedMode?.label[locale] ?? mt('unknown')}</strong></p>{readMode !== undefined && readMode !== activeMode && <p className="mode-mismatch" role="status">{mt('readMode')}: {getControllerMode(readMode)?.label[locale] ?? mt('unknown')}</p>}</div><div className="button-row">
             {view !== 'board' && <button className="secondary" disabled={externalLocked} onClick={edit}>{s('flowBack')}</button>}
             <button className="secondary" disabled={externalLocked} onClick={() => setStep('connect')}>{connected ? s('flowConnection') : t('connectPedal')}</button>
             <button className="secondary" disabled={externalLocked} onClick={chooseMode}>{mt('change')}</button>
