@@ -46,6 +46,10 @@ displayToProgram(128, 1); // 127; base 0 is also supported.
 - `Group`: `id`, `name`, `switches: { A, B, C, D }`. Each switch has `label`
   and `actions: GestureAction[]`. At most one action for each of `press`,
   `release`, `longPress`, `doublePress`; an empty actions array is allowed.
+  Optional `behavior: SwitchBehavior` is `single`, `alternate`, `momentary`,
+  `long`, or `shortLong`. Optional `secondaryMessages: MidiMessage[]` stores
+  the second sequence (0–32 messages). Neither field is inserted on import,
+  so existing version 1 files retain their shape; omitted behavior means single.
 - `GestureAction`: `gesture` plus an ordered, nonempty `messages` array.
   `MidiMessage` is `ProgramChange` (`type: 'pc'`, `channel`, `program`,
   optional `bank: { msb?, lsb? }`) or `ControlChange` (`type: 'cc'`,
@@ -60,12 +64,31 @@ displayToProgram(128, 1); // 127; base 0 is also supported.
 
 Schemas and inferred types are exported, including `studioConfigurationSchema`,
 `midiMessageSchema`, `Preset`, `Destination`, `Group`, `SwitchConfiguration`,
-`GestureAction`, `Gesture`, `SwitchId`, and `CcToggle`.
+`GestureAction`, `Gesture`, `SwitchId`, `SwitchBehavior`, and `CcToggle`.
 `encodeProgramChange(channel, program)` and
 `encodeControlChange(channel, controller, value)` encode a single message.
 Invalid encoder inputs throw Zod validation errors instead of masking/truncating.
 CC numbers 120–127 encode channel-mode messages; their device-specific
 semantics are not validated here.
+
+### Two-sequence tooling contract
+
+Keep A/B/C/D as switches in **one** group; sequence banks are not groups.
+`actions[0].messages` is the primary sequence; `secondaryMessages ?? []`
+is the secondary sequence. `alternate` means alternate sequences across
+activations; `momentary` means primary on press and secondary on release;
+`shortLong` distinguishes short-primary from long-secondary activation.
+`single` uses the primary sequence and `long` requests long-activation primary.
+Other gesture actions remain explicit independent intent; a device adapter must
+reject combinations it cannot encode rather than dropping them.
+No behavior name or enum position asserts a corresponding hardware mode code.
+
+```ts
+draft.groups[0]!.switches.A.behavior = 'alternate';
+draft.groups[0]!.switches.A.secondaryMessages = [
+  { type: 'cc', channel: 1, controller: 80, value: 0 },
+];
+```
 
 ### JSON boundary and limits
 
@@ -78,7 +101,8 @@ Imports and exports validate the whole configuration. Export throws on invalid
 input (Zod error) or oversized serialized output (`RangeError`).
 
 `CONFIGURATION_LIMITS`: 1 MiB UTF-8 JSON; 32 destinations; 1–64 groups;
-256 presets; 4 actions/switch; 1–32 messages/action; 4096 messages total;
+256 presets; 4 actions/switch; 1–32 messages/action; 0–32 secondary messages;
+4096 primary and secondary messages combined;
 128 UTF-16 code units/name, 64/label (empty label allowed), 64/ID.
 Tree traversal is bounded to depth 16 and 100,000 values. Plain JSON trees only:
 no cycles/shared object references, accessors, custom prototypes, symbol keys,
