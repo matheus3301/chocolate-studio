@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.3 — 2026-11-08 UTC
+
+- Replaced the four tall stompbox cards with a single horizontal Chocolate Plus controller illustration: A/B, central editor-selection display, C/D.
+- Added physical pair markings and bilingual guidance for E=A+B and F=C+D pressed together. These labels do not add programmable E/F records.
+- Moved assignment names and MIDI summaries below the chassis, with clearer selection and keyboard focus. The physical layout stays in one row on small screens.
+- File format, protocol, hardware write scope and existing configurations remain unchanged.
+
 ## 0.1.0-beta.2 — 2026-11-08 UTC
 
 - Public source repository under the MIT license; npm publishing remains disabled.

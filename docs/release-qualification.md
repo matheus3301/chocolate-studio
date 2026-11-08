@@ -1,6 +1,6 @@
 # Beta qualification
 
-Release: `0.1.0-beta.2`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
+Release: `0.1.0-beta.3`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
 
 | Capability | Evidence and boundary |
 | --- | --- |
@@ -15,6 +15,12 @@ Release: `0.1.0-beta.2`. Tests performed 2026-11-07/08 on macOS 26.6.2. The cont
 | Factory reset / firmware update | Unsupported. No guessed reset or flashing command. |
 
 The baseline remains private. Its SHA-256 is `6d45d5b2655f363f892bda52bfd3ca56e5ae69188cba0bd29a110f5d13ed21b7`. A final independent read-only pass matched that original image exactly after the experiments. Proprietary executables/disassembly, personal configuration bytes, raw private traces and credentials are excluded from Git and runtime assets.
+
+## Controller illustration (beta.3)
+
+The controller now follows the [photographic layout reference](../research/experiments/004-controller-visual-reference.md). E=A+B and F=C+D describe simultaneous physical presses; these labels do not add programmable pair records. The single central display identifies the selected editor switch, not live device state.
+
+Coordinator browser checks at 1440px, 390px and 320px confirmed a single horizontal controller row without horizontal overflow, with switch targets at least 44px wide. Checks exercised PT-BR/EN, click and keyboard selection, Bank A/B changes, PC42 and CC69=127, save and reload persistence. No MIDI permission or hardware write was used for this visual change; prior physical qualification remains scoped to experiment 003.
 
 ## Deployment
 
