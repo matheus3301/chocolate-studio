@@ -278,8 +278,12 @@ tbody th { font-weight: 400; color: #b5c09f; }
 .guided-shell { display: flex; flex-direction: column; min-height: 100dvh; }
 .guided-shell .sidebar { display: none; }
 .guided-header, .guided-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; padding: 16px 32px; border-bottom: 1px solid var(--line); }
-.guided-header .wordmark { margin: 0; }
-.guided-header .wordmark > span { font-size: 26px; }
+.guided-header .wordmark, .guided-topbar .wordmark { margin: 0; flex-shrink: 0; }
+.guided-header .wordmark > span, .guided-topbar .wordmark > span { font-size: 26px; }
+.guided-topbar .project-title { flex: 1 1 220px; min-width: 0; max-width: 360px; }
+.guided-topbar-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: 12px; min-width: 0; max-width: 100%; margin-left: auto; }
+.guided-topbar-actions > .language-label { flex: 0 1 112px; min-width: 0; max-width: 100%; }
+.guided-topbar-actions > .guided-menu { flex: 1 1 140px; min-width: 0; max-width: 320px; }
 .guided-main, .guided-shell main { flex: 1; width: 100%; max-width: 1120px; margin-inline: auto; padding: 32px; }
 .guided-shell .workspace-grid { display: block; max-width: 960px; }
 .guided-shell .device-aside { padding-top: 0; display: block; }
@@ -338,15 +342,25 @@ tbody th { font-weight: 400; color: #b5c09f; }
 .guided-mode-note { padding: 16px 20px; border-left: 2px solid var(--amber); background: #29271f; font-size: 13px; }
 .guided-mode-note strong { font-weight: 500; }
 .guided-mode-note p { margin: 8px 0 0; color: #d6c5a8; }
-.project-menu { position: relative; }
-.project-menu > summary { padding: 10px 12px; }
-.project-menu[open] { padding: 0 12px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
-.project-menu[open] > summary { margin-bottom: 4px; }
-.project-menu button, .project-menu a { display: flex; align-items: center; width: 100%; text-align: left; }
+.project-menu, .guided-menu { min-width: 0; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.project-menu > summary, .guided-menu > summary { padding: 10px 12px; min-height: 44px; margin: 0; color: var(--cream); overflow-wrap: anywhere; }
+.project-menu[open] > summary, .guided-menu[open] > summary { margin-bottom: 0; border-bottom: 1px solid var(--line); }
+.guided-menu-items, .guided-menu > .button-row { display: grid; gap: 4px; min-width: 0; max-width: 100%; max-height: min(60dvh, 320px); overflow-y: auto; padding: 8px; }
+.project-menu button, .project-menu a, .guided-menu-items > button, .guided-menu > .button-row > button {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px;
+  background: transparent; border: 1px solid transparent; color: var(--cream); text-align: left; font-size: 13px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere;
+}
+.guided-menu-items > button:hover:not(:disabled), .guided-menu > .button-row > button:hover:not(:disabled) { background: var(--raised); }
+.guided-menu-items > button:focus-visible, .guided-menu > .button-row > button:focus-visible { outline-offset: -2px; }
+.guided-shell .app-footer { flex-wrap: wrap; gap: 8px 24px; margin-top: auto; padding: 20px 32px; color: var(--muted); font-size: 12px; letter-spacing: 0; }
+.guided-shell .app-footer > :last-child { font-size: 11px; }
 .flow-progress { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; list-style: none; color: var(--muted); font-size: 12px; }
 .flow-progress [aria-current='step'] { color: var(--cream); font-weight: 600; }
 @media (max-width: 700px) {
   .guided-header, .guided-topbar { padding: 16px; gap: 12px; }
+  .guided-topbar-actions { width: 100%; justify-content: space-between; }
+  .guided-topbar-actions > .guided-menu { max-width: none; }
+  .guided-shell .app-footer { padding: 16px; gap: 8px 16px; }
   .guided-main, .guided-shell main { padding: 20px 16px; }
   .setup-card { margin: 12px 0; padding: 20px; }
   .guided-toolbar { margin-bottom: 20px; }
