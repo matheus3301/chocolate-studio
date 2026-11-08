@@ -34,3 +34,17 @@ export {
 } from './equipment.js';
 export { applyEquipmentAction, clearEquipmentActionBinding } from './equipment-actions.js';
 export type { EquipmentSequence, ApplyEquipmentActionOptions } from './equipment-actions.js';
+export {
+  CONTROLLER_MODES, controllerModeSchema, controllerSettingsSchema,
+  getControllerMode, effectiveControllerMode,
+} from './controller.js';
+export type {
+  ControllerMode, ControllerModeDefinition, ControllerAssignment, ControllerSettings,
+} from './controller.js';
+export {
+  keyboardCombinationSchema, keyboardAssignmentSchema, mixedAssignmentSchema,
+  CONTROLLER_CUSTOM_COMMANDS, CONTROLLER_INTERFACE_COMMANDS,
+} from './controller.js';
+export type { KeyboardAssignment, MixedAssignment } from './controller.js';
+export { interfaceAssignmentSchema } from './controller.js';
+export type { InterfaceAssignment } from './controller.js';

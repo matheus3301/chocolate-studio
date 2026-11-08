@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SWITCH_IDS, applyEquipmentAction, compileEquipmentAction, equipmentProfiles, localizeEquipmentText } from '@chocolate-studio/midi';
 import type { EquipmentActionParameters, EquipmentProfile, EquipmentSequence, MidiMessage, StudioConfiguration, SwitchId } from '@chocolate-studio/midi';
@@ -7,7 +8,6 @@ import { NameField, NumberField } from './components.js';
 import { editGroup } from './editor.js';
 import type { Sequence } from './editor.js';
 import { boundEquipmentAction, destinationProfile, sameMidiCommands, sequenceMessages } from './guided-actions.js';
-import { formatCommandNumber, groupProgramRange, primaryProgram } from './guided-navigation.js';
 
 export interface GuidedEditorProps {
   configuration: StudioConfiguration;
@@ -23,15 +23,11 @@ export interface GuidedEditorProps {
   onPendingChange?: (pending: boolean) => void;
   sequence?: Sequence;
   onSequence?: (sequence: Sequence) => void;
-  modeMetadata?: {
-    source?: 'read' | 'draft';
-    display?: 'pc' | 'unknown';
-    groupIds?: readonly string[];
-    rawMode?: number;
-    modeKind?: 'program-change' | 'advanced' | 'unclassified';
-    displayStyle?: 'pc-number' | 'unobserved';
-    pcDisplayEnabled?: boolean | null;
-  };
+  switchOptions?: ReactNode;
+  children?: ReactNode;
+  externalPending?: boolean;
+  midiEditable?: boolean;
+  assignmentSummaries?: Partial<Record<SwitchId, string>>;
 }
 
 type ActionProps = Pick<GuidedEditorProps, 'configuration' | 'onChange' | 'switchId' | 'confirm' | 'destinationId'> & {
@@ -116,7 +112,6 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
         : <p className="helper">{t('guided.rawEquipmentHint')}</p>}
       {action && Object.entries(action.parameters).map(([id, parameter]) => <NumberField key={`${action.id}-${id}`} label={localizeEquipmentText(parameter.label, locale)} min={parameter.minimum} max={parameter.maximum} value={parameters[id] ?? parameter.initial} onChange={(value) => { setParameters({ ...parameters, [id]: value }); setError(''); }} />)}
     </div>
-    {action && <p className="helper">{localizeEquipmentText(action.description, locale)}</p>}
     {preview && destination && <p className="guided-expected" role="status">{t('guided.expected', { equipment: destination.name, action: [actionDescription, parameterDescription].filter(Boolean).join(' · ') })}</p>}
     {preview && <details className="guided-midi"><summary>{t('guided.midiDetails')}</summary><ol>{preview.map((message, index) => <li key={index}><code>{message.type === 'pc' ? `PC ${message.program}` : `CC ${message.controller} = ${message.value}`}</code> · {t('channel')} {message.channel}</li>)}</ol><p className="helper">{t('guided.expectedNotObserved')}</p></details>}
     {error && <p role="alert" className="warning-text">{t(error)}</p>}
@@ -125,12 +120,13 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
   </form>;
 }
 
-export function GuidedEditor({ configuration, onChange, groupId, onGroup, switchId, onSwitch, confirm, destinationId, disabled = false, profiles = equipmentProfiles, modeMetadata, onPendingChange, sequence, onSequence }: GuidedEditorProps) {
+export function GuidedEditor({ configuration, onChange, groupId, onGroup, switchId, onSwitch, confirm, destinationId, disabled = false, profiles = equipmentProfiles, onPendingChange, sequence, onSequence, switchOptions, children, externalPending = false, midiEditable = true, assignmentSummaries }: GuidedEditorProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'pt-BR';
   const controllerId = useId();
   const [localSequence, setLocalSequence] = useState<Sequence>('primary');
   const rawSequence = sequence ?? localSequence;
+  const musicalSequence: EquipmentSequence = rawSequence === 'secondary' ? 'secondary' : 'primary';
   const setRawSequence = (next: Sequence) => { setLocalSequence(next); onSequence?.(next); };
   const [holdSelection, setHoldSelection] = useState('');
   const [formRevision, setFormRevision] = useState(0);
@@ -146,69 +142,67 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
     if (wasPending !== nowPending) { setPending(nowPending); pendingCallback.current?.(nowPending); }
   }, []);
   useEffect(() => () => { pendingCallback.current?.(false); }, []);
-  const groups = modeMetadata?.groupIds ? configuration.groups.filter((group) => modeMetadata.groupIds!.includes(group.id)) : configuration.groups;
+  const groups = configuration.groups;
   const group = groups.find((entry) => entry.id === groupId) ?? groups[0];
   if (!group) return <p role="status">{t('guided.noReadGroups')}</p>;
   const pedal = group.switches[switchId];
   const index = groups.indexOf(group);
-  const range = groupProgramRange(group);
-  const programChangeMode = modeMetadata?.modeKind === 'program-change' || modeMetadata?.rawMode === 0;
-  const physicalNumbers = !programChangeMode && modeMetadata?.source === 'read' && modeMetadata.display === 'pc' && !!range;
-  const selectedProgram = physicalNumbers ? primaryProgram(pedal) : undefined;
   const selection = `${group.id}:${switchId}`;
   const showHold = pedal.behavior === 'shortLong' || holdSelection === selection;
   const change = (next: StudioConfiguration) => onChange(next) !== false;
   function navigate(action: () => void) {
-    if (!pendingOwners.current.size) { action(); return; }
+    if (!pendingOwners.current.size && !externalPending) { action(); return; }
     confirm(t('guided.discardPending'), t('guided.discardChanges'), () => { setFormRevision((value) => value + 1); action(); });
   }
   function selectGroup(id: string) { if (id !== group!.id) navigate(() => { onGroup(id); setRawSequence('primary'); setHoldSelection(''); }); }
   function selectSwitch(id: SwitchId) { if (id !== switchId) navigate(() => { onSwitch(id); setRawSequence('primary'); setHoldSelection(''); }); }
-  function summary(id: SwitchId): string {
+  function summary(id: SwitchId, selectedSequence: EquipmentSequence = 'primary'): string {
     const entry = group!.switches[id];
-    const bound = boundEquipmentAction(configuration, entry, 'primary', profiles);
+    const bound = boundEquipmentAction(configuration, entry, selectedSequence, profiles);
     if (bound) return `${bound.destination.name} · ${localizeEquipmentText(bound.action.label, locale)}${Object.keys(bound.binding.parameters).length ? ` · ${Object.values(bound.binding.parameters).join(' / ')}` : ''}`;
-    const first = entry.actions[0]?.messages[0];
+    const messages = sequenceMessages(entry, selectedSequence);
+    const first = messages[0];
     if (!first) return t('noAssignment');
-    return `${first.type === 'pc' ? `PC ${first.program}` : `CC ${first.controller} = ${first.value}`} · ${t('channel')} ${first.channel}${entry.actions[0]!.messages.length > 1 ? ` · ${t('guided.multipleMessages', { count: entry.actions[0]!.messages.length })}` : ''}`;
+    return `${first.type === 'pc' ? `PC ${first.program}` : `CC ${first.controller} = ${first.value}`} · ${t('channel')} ${first.channel}${messages.length > 1 ? ` · ${t('guided.multipleMessages', { count: messages.length })}` : ''}`;
   }
   return <fieldset className="guided-editor guided-fields" disabled={disabled}>
     {pending && <p className="guided-pending" role="status">{t('guided.pendingInstruction')}</p>}
-    {programChangeMode && <aside className="guided-mode-note" aria-label={t('guided.deviceMode')}><strong>{t('guided.programChangeMode')}</strong><p>{t('guided.programChangeBoundary')}</p><p>{t('guided.advancedActivation')}</p></aside>}
     <section className="guided-controller" aria-label={t('board')}>
       <div className="guided-navigation">
-        <div><p className="eyebrow">{t(physicalNumbers ? 'guided.numbersOnChocolate' : 'guided.groupBeingEdited')}</p><strong>{physicalNumbers ? range : group.name}</strong></div>
+        <div><p className="eyebrow">{t('guided.groupBeingEdited')}</p><strong>{group.name}</strong></div>
         <div className="guided-nav-controls"><button type="button" className="secondary" disabled={index === 0} onClick={() => selectGroup(groups[index - 1]!.id)}>{t('guided.previousChoices')}</button>
-          <label className="field"><span className="visually-hidden">{t('guided.goToChoices')}</span><select value={group.id} onChange={(event) => selectGroup(event.target.value)}>{groups.map((entry) => {
-            const groupRange = physicalNumbers ? groupProgramRange(entry) : undefined;
-            return <option key={entry.id} value={entry.id}>{groupRange ?? entry.name}</option>;
-          })}</select></label>
+          <label className="field"><span className="visually-hidden">{t('guided.goToChoices')}</span><select value={group.id} onChange={(event) => selectGroup(event.target.value)}>{groups.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
           <button type="button" className="secondary" disabled={index === groups.length - 1} onClick={() => selectGroup(groups[index + 1]!.id)}>{t('guided.nextChoices')}</button></div>
       </div>
       <div className="controller-chassis"><span className="controller-wordmark" aria-hidden="true">CHOCOLATE PLUS</span>
         <div className="controller-deck" role="group" aria-label={t('controllerDiagram')} aria-describedby={`${controllerId}-preview`}>
           <span className="controller-pair pair-e" aria-hidden="true"><span>E</span></span><span className="controller-pair pair-f" aria-hidden="true"><span>F</span></span>
           {SWITCH_IDS.map((id) => <Fragment key={id}>
-            {id === 'C' && <div className="controller-display" role="status"><span>{t('editing')}</span><strong>{selectedProgram === undefined ? switchId : formatCommandNumber(selectedProgram)}</strong></div>}
-            <button type="button" className={`controller-switch controller-switch-${id}`} aria-pressed={switchId === id} aria-label={t('guided.editChoice', { choice: physicalNumbers ? `${formatCommandNumber(primaryProgram(group.switches[id])!)} · ${id}` : id })} aria-describedby={`${controllerId}-${id}`} onClick={() => selectSwitch(id)}>
-              <span className="controller-metal" aria-hidden="true"><span /></span><span className="controller-letter" aria-hidden="true">{id}{physicalNumbers && <small>{formatCommandNumber(primaryProgram(group.switches[id])!)}</small>}</span>
+            {id === 'C' && <div className="controller-display" role="status"><span>{t('editing')}</span><strong>{switchId}</strong></div>}
+            <button type="button" className={`controller-switch controller-switch-${id}`} aria-pressed={switchId === id} aria-label={t('guided.editChoice', { choice: id })} aria-describedby={`${controllerId}-${id}`} onClick={() => selectSwitch(id)}>
+              <span className="controller-metal" aria-hidden="true"><span /></span><span className="controller-letter" aria-hidden="true">{id}</span>
             </button>
           </Fragment>)}
         </div>
       </div>
       <p className="guided-preview-note" id={`${controllerId}-preview`}>{t('guided.localPreview')}</p>
-      <dl className="controller-assignments">{SWITCH_IDS.map((id) => <div className="controller-assignment" data-selected={id === switchId} id={`${controllerId}-${id}`} key={id}><dt><span className="assignment-letter">{id}</span><span>{group.switches[id].label}</span></dt><dd>{summary(id)}</dd></div>)}</dl>
+      <dl className="controller-assignments">{SWITCH_IDS.map((id) => <div className="controller-assignment" data-selected={id === switchId} id={`${controllerId}-${id}`} key={id}><dt><span className="assignment-letter">{id}</span><span>{group.switches[id].label}</span></dt><dd>{assignmentSummaries?.[id] ?? summary(id)}</dd></div>)}</dl>
       <details className="guided-pair-notes"><summary>{t('guided.physicalCombinations')}</summary><p>{t('pairPress', { pair: 'E', left: 'A', right: 'B' })}. {t('pairPress', { pair: 'F', left: 'C', right: 'D' })}.</p><p>{t('guided.modeDependentBanking')}</p></details>
     </section>
     <section className="guided-inspector guided-panel" aria-labelledby={`${controllerId}-editor`}>
-      <header className="section-heading"><h2 id={`${controllerId}-editor`}>{selectedProgram === undefined ? t('editingSwitch', { switch: switchId }) : t('guided.editingNumber', { number: formatCommandNumber(selectedProgram), switch: switchId })}</h2><span className="small-tag">{t('draft')}</span></header>
+      <header className="section-heading"><h2 id={`${controllerId}-editor`}>{t('editingSwitch', { switch: switchId })}</h2><span className="small-tag">{t('draft')}</span></header>
       <NameField label={t('label')} max={64} value={pedal.label} onChange={(label) => change(editGroup(configuration, group.id, (next) => { next.switches[switchId].label = label; }))} />
+      {switchOptions}
       {!['single', 'shortLong'].includes(pedal.behavior ?? 'single') && <p className="warning-text">{t('guided.existingBehavior', { behavior: t(pedal.behavior!) })}</p>}
-      <ActionEditor key={`${selection}:${formRevision}:primary:${JSON.stringify([pedal.actionBindings?.primary, sequenceMessages(pedal, 'primary')])}`} configuration={configuration} onChange={onChange} groupId={group.id} switchId={switchId} confirm={confirm} sequence="primary" profiles={profiles} reportPending={reportPending} {...(destinationId ? { destinationId } : {})} />
-      {showHold ? <ActionEditor key={`${selection}:${formRevision}:secondary:${JSON.stringify([pedal.actionBindings?.secondary, sequenceMessages(pedal, 'secondary')])}`} configuration={configuration} onChange={onChange} groupId={group.id} switchId={switchId} confirm={confirm} sequence="secondary" profiles={profiles} reportPending={reportPending} {...(destinationId ? { destinationId } : {})} />
-        : <button type="button" className="text-button" onClick={() => setHoldSelection(selection)}>{t('guided.addHold')}</button>}
-      <p className="helper">{t('guided.draftOnly')}</p>
+      {midiEditable ? <div className="guided-action-workspace">
+        <div className="gesture-choices" role="group" aria-label={t('sequence')}>
+          <button type="button" className="gesture-choice" aria-pressed={musicalSequence === 'primary'} onClick={() => { if (musicalSequence !== 'primary') navigate(() => setRawSequence('primary')); }}><strong>{t('guided.onTap')}</strong><span>{summary(switchId)}</span></button>
+          {showHold ? <button type="button" className="gesture-choice" aria-pressed={musicalSequence === 'secondary'} onClick={() => { if (musicalSequence !== 'secondary') navigate(() => setRawSequence('secondary')); }}><strong>{t('guided.onHold')}</strong><span>{summary(switchId, 'secondary')}</span></button>
+            : <button type="button" className="text-button" onClick={() => navigate(() => { setHoldSelection(selection); setRawSequence('secondary'); })}>{t('guided.addHold')}</button>}
+        </div>
+        <ActionEditor key={`${selection}:${formRevision}:${musicalSequence}:${JSON.stringify([pedal.actionBindings?.[musicalSequence], sequenceMessages(pedal, musicalSequence)])}`} configuration={configuration} onChange={onChange} groupId={group.id} switchId={switchId} confirm={confirm} sequence={musicalSequence} profiles={profiles} reportPending={reportPending} {...(destinationId ? { destinationId } : {})} />
+      </div> : <div key={formRevision}>{children}</div>}
     </section>
-    <details className="guided-advanced"><summary>{t('guided.advancedMidi')}</summary><p className="helper">{t('guided.rawEditHint')}</p><fieldset className="guided-fields" disabled={pending}><Pedalboard configuration={configuration} onChange={change} groupId={group.id} onGroup={selectGroup} switchId={switchId} onSwitch={selectSwitch} sequence={rawSequence} onSequence={setRawSequence} confirm={confirm} inspectorOnly /></fieldset></details>
+    {midiEditable && <details className="guided-advanced"><summary>{t('guided.advancedMidi')}</summary><p className="helper">{t('guided.rawEditHint')}</p><fieldset className="guided-fields" disabled={pending || externalPending}><Pedalboard configuration={configuration} onChange={change} groupId={group.id} onGroup={selectGroup} switchId={switchId} onSwitch={selectSwitch} sequence={rawSequence} onSequence={setRawSequence} confirm={confirm} inspectorOnly /></fieldset></details>}
   </fieldset>;
 }

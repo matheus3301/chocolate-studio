@@ -1,6 +1,6 @@
 # Controller capabilities for the guided product
 
-**Design for review; no application implementation authorized.** Audited source: beta.3 main `3a7de7f6deeca46175ffcb6797b900a8f4fc1dbd`. Manual references were added separately at `b77133e`. No application/package/runtime edits, browser actions or hardware operations were performed for this document.
+**Historical discovery document, based on beta.3.** The user subsequently authorized implementation. The current mode-aware setup contract is [Operating-mode setup](operating-modes.md); implementation and hardware evidence are recorded in [release qualification](../release-qualification.md). The analysis below preserves the original evidence boundaries and is not the current release inventory.
 
 ## 1. Product rule: configure a request, do not invent an outcome
 

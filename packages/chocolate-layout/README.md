@@ -29,15 +29,33 @@ const { bytes, changes, footprints } = applyFcpPatches(input, patches);
 // input unchanged; bytes is independent. No send or verification occurs.
 ```
 
-`decodeFcp` exposes raw mode/globals, interface bank, eight advanced groups,
-four switches per group, both 16-slot banks, and raw record bytes. PC/CC records
-include a validated interpretation; disabled, other-type and malformed records
-remain represented without repair. `issues` identifies observed field-domain
+`decodeFcp` exposes raw mode/globals, interface bank, eight Advanced groups,
+six keyboard groups, six mixed groups, all A–D switches and both 16-slot MIDI
+banks per Advanced/Mix switch. PC/CC/Note On/Note Off records include a validated
+interpretation; disabled, custom, unknown and malformed records remain raw.
+`issues` identifies observed field-domain
 violations. Decoding never compacts slots, normalizes flags, or rebuilds bytes.
 Length alone cannot identify a device/firmware version or authenticate an FCP file.
 
-`applyFcpPatches` accepts scalar `field`, advanced `switchMode`, PC/CC `message`,
-and `clearMessage` patches. Interface messages use `{ scope: 'interface', slot }`.
+`applyFcpPatches` accepts scalar `field`, `switchMode`, standard `message`,
+`clearMessage`, `keyboard`, `mixedType`, `turnerKey`, `interfaceAssignment`
+and `clearInterfaceAssignment` patches.
+Interface records are NOT typed MIDI messages: `{kind:'interfaceAssignment',
+slot, assignment:{channel,data,releaseValue,pressValue}}` sets the five-byte
+pedal endpoint record. Channel is 1–16; the other fields are 0–127.
+`{kind:'clearInterfaceAssignment',slot}` changes enabled only.
+`interfaceBank.records` exposes raw fields and validated `assignment` or null.
+The obsolete generic MIDI location `{scope:'interface'}` is rejected.
+Advanced/Mix message locations use `scope: 'advanced' | 'mixed'`, groupIndex,
+switchId, bank and slot. `switchMode` uses optional scope (default Advanced).
+Keyboard patches require `scope: 'keyboard' | 'mixed'`, groupIndex, switchId and
+`combination: { modifier1, modifier2, key }` using menu indexes, not stored bytes.
+Modifier indexes are 0–4; duplicate nonzero modifiers are rejected.
+`FCP_KEYBOARD_KEYS`, `FCP_KEYBOARD_MODIFIERS` and `FCP_TURNER_KEYS` expose the
+observed menu order. `mixedType` writes typeCode 0 MIDI / 1 keyboard / 2 Turner;
+`turnerKey` writes keyIndex 0–9. All these are independent edits; changing
+function or mode never clears inactive assignments. Note writes are supported
+only in Advanced/Mix banks, not the interface editor.
 Clear changes only the enabled flag. PC edits preserve the unused fifth byte.
 All coordinates and values are checked; unknown keys, unsafe patch objects,
 overlapping writes, and batches over 2048 patches are rejected before any copy
@@ -51,10 +69,14 @@ restore and verification belong outside this package. Preserve the entire input
 image for recovery; never serialize a decoded partial view as a replacement image.
 
 `FCP_FIELDS`, `FCP_LAYOUT`, `OPAQUE_REGIONS`, `advancedSwitchOffset`,
-`messageOffset`, `FcpPatchResult`, `PcCcMessage`, `MessageLocation` and decoded
-view types are exported. Group/slot indexes are zero-based; message channels are
-1–16, but `channelIndex` fields are raw 0–15. Banks are sequences inside a switch,
-never separate groups. No names, labels, destinations or audio patches are invented.
+`keyboardSwitchOffset`, `mixedSwitchOffset`, `messageOffset`, `FcpPatchResult`,
+`FcpMessage`, `MessageLocation` and decoded view types are exported.
+Keyboard decoding exposes raw triples plus a validated combination or null.
+Custom MIDI payloads remain opaque; no API reconstructs them.
+Group/slot indexes are zero-based; message channels are 1–16, but scalar
+`channelIndex` is 0–15. Banks are sequences inside a switch, never separate groups.
+Mode-only writes must remain one-byte field patches; never recast Advanced
+draft groups as Mix data. Preserve both independent regions and the original image.
 
 Storage layout evidence does **not** establish physical gesture timing, live MIDI
 emission, power-cycle persistence, or firmware compatibility. The mode-code names

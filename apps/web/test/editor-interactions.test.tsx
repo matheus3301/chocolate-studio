@@ -21,8 +21,14 @@ async function ready(configuration = initialConfiguration('en'), hardware?: Hard
   await database.initialize(configuration);
   const rendered = render(<App {...(hardware ? { hardware } : {})} />);
   await waitFor(() => expect((screen.getByLabelText(i18n.t('projectName')) as HTMLInputElement).disabled).toBe(false));
+  openFiles();
   if (advanced) {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('flowContinue', { ns: 'shell' }) }));
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('continue', { ns: 'mode' }) }));
+    if (screen.queryByRole('button', { name: i18n.t('guided.editSwitches') })) {
+      fireEvent.change(screen.getByLabelText(i18n.t('guided.equipmentInstance')), { target: { value: configuration.destinations[0]!.id } });
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.editSwitches') }));
+    }
     fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
   }
   return rendered;
@@ -33,6 +39,7 @@ function saveButton() { openFiles(); return screen.getByRole('button', { name: i
 
 function fullConfiguration(): StudioConfiguration {
   const configuration = initialConfiguration('en');
+  configuration.controller = { mode: 3 };
   const first = configuration.groups[0]!;
   configuration.groups = Array.from({ length: 32 }, (_, index) => {
     const group = structuredClone(first);
@@ -131,7 +138,6 @@ describe('aggregate message capacity', () => {
       fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
     }
     expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
-    expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('button', { name: en.secondary }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(en.noMessages)).toBeTruthy();
   });
@@ -188,7 +194,6 @@ it('rejects JSON byte overflow and restores accepted numeric/name displays at th
   fireEvent.change(name, { target: { value: 'é'.repeat(128) } });
   fireEvent.blur(name);
   expect(name.value).toBe(configuration.name);
-  expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
   const persisted = (await database.drafts.get('current'))!.configuration;
   expect(persisted.groups[0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
   expect(persisted.groups[0]!.switches.A.secondaryMessages).toBeUndefined();

@@ -19,6 +19,15 @@ export const FCP_LAYOUT = Object.freeze({
   customAOffset: 0xa1,
   customBOffset: 0x121,
   customLength: 128,
+  keyboardOffset: 0x347d,
+  keyboardLength: 0x48,
+  keyboardGroupStride: 12,
+  keyboardSwitchStride: 3,
+  mixOffset: 0x34c5,
+  mixLength: 0x2790,
+  mixGroupStride: 0x698,
+  mixSwitchStride: 0x1a6,
+  mixGroupCount: 6,
 });
 export const SWITCH_IDS = ['A', 'B', 'C', 'D'] as const;
 export type SwitchId = typeof SWITCH_IDS[number];
@@ -68,11 +77,9 @@ for (const definition of Object.values(FCP_FIELDS)) Object.freeze(definition);
 Object.freeze(FCP_FIELDS);
 export type FcpField = keyof typeof FCP_FIELDS;
 
-/** Identified extents, not decoded/rewritten: keyboard, mixed mode, and byte 11. */
+/** Byte 11 has no observed writer. Custom MIDI payload extents also remain opaque. */
 export const OPAQUE_REGIONS: readonly Readonly<ByteRange>[] = Object.freeze([
   Object.freeze({ offset: 11, length: 1 }),
-  Object.freeze({ offset: 0x347d, length: 0x48 }),
-  Object.freeze({ offset: 0x34c5, length: 0x2790 }),
 ]);
 
 export function assertFcpImage(image: Uint8Array): void {
@@ -95,15 +102,36 @@ export function advancedSwitchOffset(groupIndex: number, switchId: SwitchId): nu
 }
 
 export type MessageLocation =
-  | { scope: 'interface'; slot: number }
+  | { scope: 'mixed'; groupIndex: number; switchId: SwitchId; bank: BankId; slot: number }
   | { scope: 'advanced'; groupIndex: number; switchId: SwitchId; bank: BankId; slot: number };
 
 export function messageOffset(location: MessageLocation): number {
   assertInteger(location.slot, 0, 15, 'slot');
-  if (location.scope === 'interface') return FCP_LAYOUT.interfaceBankOffset + location.slot * FCP_LAYOUT.recordLength;
-  if (location.scope !== 'advanced' || (location.bank !== 'A' && location.bank !== 'B')) {
+  if ((location.scope !== 'advanced' && location.scope !== 'mixed') || (location.bank !== 'A' && location.bank !== 'B')) {
     throw new RangeError('Unknown message scope or bank');
   }
-  return advancedSwitchOffset(location.groupIndex, location.switchId) +
-    (location.bank === 'A' ? FCP_LAYOUT.bankAOffset : FCP_LAYOUT.bankBOffset) + location.slot * FCP_LAYOUT.recordLength;
+  const base = location.scope === 'mixed' ? mixedSwitchOffset(location.groupIndex, location.switchId) + 5
+    : advancedSwitchOffset(location.groupIndex, location.switchId);
+  return base + (location.bank === 'A' ? FCP_LAYOUT.bankAOffset : FCP_LAYOUT.bankBOffset) + location.slot * FCP_LAYOUT.recordLength;
+}
+
+export function keyboardSwitchOffset(groupIndex: number, switchId: SwitchId): number {
+  assertInteger(groupIndex, 0, 5, 'groupIndex');
+  const switchIndex = SWITCH_IDS.indexOf(switchId);
+  if (switchIndex < 0) throw new RangeError('switchId must be A, B, C, or D');
+  return FCP_LAYOUT.keyboardOffset + groupIndex * FCP_LAYOUT.keyboardGroupStride + switchIndex * FCP_LAYOUT.keyboardSwitchStride;
+}
+
+export function mixedSwitchOffset(groupIndex: number, switchId: SwitchId): number {
+  assertInteger(groupIndex, 0, 5, 'groupIndex');
+  const switchIndex = SWITCH_IDS.indexOf(switchId);
+  if (switchIndex < 0) throw new RangeError('switchId must be A, B, C, or D');
+  return FCP_LAYOUT.mixOffset + groupIndex * FCP_LAYOUT.mixGroupStride + switchIndex * FCP_LAYOUT.mixSwitchStride;
+}
+
+/** Interface records are pedal endpoints, not typed PC/CC bank records. */
+export interface InterfaceAssignment { channel: number; data: number; releaseValue: number; pressValue: number }
+export function interfaceAssignmentOffset(slot: number): number {
+  assertInteger(slot, 0, 15, 'slot');
+  return FCP_LAYOUT.interfaceBankOffset + slot * FCP_LAYOUT.recordLength;
 }

@@ -7,7 +7,7 @@ The product runs entirely on the client, supports Portuguese and English, and us
 ## Workspace
 
 - `packages/chocolate`: independently derived protocol, transport contracts and verified read/write sessions.
-- `packages/chocolate-layout`: observed FCP fields, eight-group bank layout and immutable patches preserving opaque bytes.
+- `packages/chocolate-layout`: observed mode/settings, Advanced/Mix/keyboard/interface layouts and immutable patches preserving opaque bytes.
 - `packages/midi`: generic MIDI messages, destinations and configuration models.
 - `research/tools`: native MIDI capture tooling; `apps/lab` reserves a separate research workbench.
 - `apps/web`: public configuration editor.
@@ -18,15 +18,15 @@ The product runs entirely on the client, supports Portuguese and English, and us
 
 The public beta is available at [chocolate-studio.mmonteiro.dev](https://chocolate-studio.mmonteiro.dev). The actual TypeScript library has passed full configuration reads, channel and advanced-bank storage writes, exact readback and restoration on a Chocolate Plus identifying as `FootCtrlPlus_016`. The public site also passed a physical Chrome Web MIDI read/write/readback/restore cycle ([browser experiment](research/experiments/003-web-midi-roundtrip.md)). See [hardware evidence](research/experiments/002-bank-library-roundtrip.md), [layout mapping](packages/chocolate-layout/MAPPING.md), and [release qualification](docs/release-qualification.md).
 
-The editor programs PC/CC sequences in advanced mode: up to eight groups, four switches per group and two banks of up to sixteen expanded MIDI messages per switch. Bank selection expands to CC0/CC32 before PC. Names, destination labels and preset libraries are local project metadata. Keyboard/custom opaque records are preserved rather than silently converted.
+Setup offers all thirteen modes observed in CubeSuite, retaining the connected controller's mode by default. Mode-specific editors cover sequential PC/CC, custom command selectors, Advanced actions, keyboard shortcuts, independent Mix assignments and external-interface settings. Advanced provides up to eight groups, four switches per group and two sequences of up to sixteen expanded MIDI messages per switch. Bank selection expands to CC0/CC32 before PC. Names, destination labels and preset libraries are local project metadata; unknown records remain preserved. See [mode setup](docs/product/operating-modes.md) and the [mode write/readback experiments](research/experiments/006-operating-modes.md).
 
 No firmware-update or factory-reset operation is implemented. Recovery uses an exact configuration backup. Physical footpress behavior and persistence across a power cycle still need separate validation; storage verification alone does not establish them. Other device identities are not enabled for hardware writes.
 
 ## Use
 
 1. Open the site in a desktop browser supporting Web MIDI with SysEx. The connection wizard helps you choose the controller ports, read the full configuration and preserve its original backup. You can also edit without connecting.
-2. Choose the receiving equipment and its MIDI channel. The first supplied profile is the Line 6 M5; **Advanced MIDI** works with other destinations. Profiles describe musical actions and their parameters, rather than separate brand-specific interfaces.
-3. Select A, B, C or D, choose an action and apply it to the draft. Add a hold action if needed. For example, tap A selects M5 preset 1 and hold A selects preset 2. Existing raw sequences remain available under Advanced MIDI.
+2. Keep the current operating mode or choose how you want to use the controller. For freely assigned musical actions, select **Custom MIDI actions**. Fixed modes show their own ranges and controls.
+3. In the musical-action editor, choose the receiving equipment and channel, select A–D, and assign a tap or hold action. The first profile is Line 6 M5; **Advanced MIDI** supports generic destinations. For example, tap A selects preset 1 and hold A selects preset 2. Existing raw sequences remain available under Advanced MIDI. Keyboard and Mix modes open their corresponding editors.
 4. Review and save to Chocolate. The adapter compares the complete baseline, writes, and rereads every byte before reporting a verified configuration. Then test the switches on the receiving equipment separately.
 5. Use **Project & files** to save in this browser or download/open a versioned JSON project. Equipment intentions and raw MIDI are preserved together.
 

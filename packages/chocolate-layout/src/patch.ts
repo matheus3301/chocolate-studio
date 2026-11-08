@@ -1,13 +1,20 @@
 import {
-  FCP_FIELDS, FCP_LAYOUT, advancedSwitchOffset, assertFcpImage, assertInteger, messageOffset,
+  FCP_FIELDS, FCP_LAYOUT, advancedSwitchOffset, assertFcpImage, assertInteger, messageOffset, keyboardSwitchOffset, mixedSwitchOffset, interfaceAssignmentOffset,
 } from './layout.js';
-import type { ByteRange, FcpField, MessageLocation, SwitchId } from './layout.js';
-import type { PcCcMessage } from './decode.js';
+import type { ByteRange, FcpField, MessageLocation, SwitchId, InterfaceAssignment } from './layout.js';
+import type { FcpMessage } from './decode.js';
+import { encodeKeyboardCombination } from './keyboard.js';
+import type { KeyboardCombination } from './keyboard.js';
 
 export type FcpPatch =
   | { kind: 'field'; field: FcpField; value: number }
-  | { kind: 'switchMode'; groupIndex: number; switchId: SwitchId; modeCode: number }
-  | { kind: 'message'; location: MessageLocation; message: PcCcMessage }
+  | { kind: 'switchMode'; scope?: 'advanced' | 'mixed'; groupIndex: number; switchId: SwitchId; modeCode: number }
+  | { kind: 'keyboard'; scope: 'keyboard' | 'mixed'; groupIndex: number; switchId: SwitchId; combination: KeyboardCombination }
+  | { kind: 'mixedType'; groupIndex: number; switchId: SwitchId; typeCode: number }
+  | { kind: 'turnerKey'; groupIndex: number; switchId: SwitchId; keyIndex: number }
+  | { kind: 'interfaceAssignment'; slot: number; assignment: InterfaceAssignment }
+  | { kind: 'clearInterfaceAssignment'; slot: number }
+  | { kind: 'message'; location: MessageLocation; message: FcpMessage }
   | { kind: 'clearMessage'; location: MessageLocation };
 export interface PatchFootprint {
   /** Exact bytes this patch is allowed to modify, not all necessarily changed. */
@@ -34,7 +41,6 @@ function assertKeys(value: unknown, keys: readonly string[]): void {
 
 function validateLocation(location: MessageLocation): void {
   assertKeys(location, ['scope', 'slot', 'groupIndex', 'switchId', 'bank']);
-  if (location.scope === 'interface') assertKeys(location, ['scope', 'slot']);
   // messageOffset validates the discriminant, all indexes, switch ID and bank ID.
   messageOffset(location);
 }
@@ -53,7 +59,7 @@ export function applyFcpPatches(image: Uint8Array, patches: readonly FcpPatch[])
     }
   };
   for (const patch of patches as readonly FcpPatch[]) {
-    assertKeys(patch, ['kind', 'field', 'value', 'groupIndex', 'switchId', 'modeCode', 'location', 'message']);
+    assertKeys(patch, ['kind', 'field', 'value', 'scope', 'groupIndex', 'switchId', 'modeCode', 'location', 'message', 'combination', 'typeCode', 'keyIndex', 'slot', 'assignment']);
     switch (patch.kind) {
       case 'field': {
         assertKeys(patch, ['kind', 'field', 'value']);
@@ -65,13 +71,62 @@ export function applyFcpPatches(image: Uint8Array, patches: readonly FcpPatch[])
           cubeSuiteRange: { offset: definition.offset, length: 1 }, provenance: definition.provenance });
         break;
       }
+      case 'interfaceAssignment':
+      case 'clearInterfaceAssignment': {
+        assertKeys(patch, patch.kind === 'interfaceAssignment' ? ['kind', 'slot', 'assignment'] : ['kind', 'slot']);
+        const offset = interfaceAssignmentOffset(patch.slot);
+        if (patch.kind === 'interfaceAssignment') {
+          const assignment = patch.assignment;
+          assertKeys(assignment, ['channel', 'data', 'releaseValue', 'pressValue']);
+          assertInteger(assignment.channel, 1, 16, 'channel');
+          assertInteger(assignment.data, 0, 127, 'data');
+          assertInteger(assignment.releaseValue, 0, 127, 'releaseValue');
+          assertInteger(assignment.pressValue, 0, 127, 'pressValue');
+          plan(offset, [1, assignment.channel - 1, assignment.data, assignment.releaseValue, assignment.pressValue]);
+        } else {
+          plan(offset, [0]);
+        }
+        footprints.push({ fieldRange: { offset, length: patch.kind === 'interfaceAssignment' ? 5 : 1 },
+          cubeSuiteRange: { offset: FCP_LAYOUT.interfaceBankOffset, length: 80 },
+          provenance: 'editInterface 0x10008cd9c..0x10008ce13; updateInterfaceList 0x10008c5de..0x10008c60d' });
+        break;
+      }
       case 'switchMode': {
-        assertKeys(patch, ['kind', 'groupIndex', 'switchId', 'modeCode']);
-        const offset = advancedSwitchOffset(patch.groupIndex, patch.switchId);
+        assertKeys(patch, ['kind', 'scope', 'groupIndex', 'switchId', 'modeCode']);
+        if (patch.scope !== undefined && patch.scope !== 'advanced' && patch.scope !== 'mixed') throw new RangeError('Unknown switch scope');
+        const offset = patch.scope === 'mixed' ? mixedSwitchOffset(patch.groupIndex, patch.switchId) + 5
+          : advancedSwitchOffset(patch.groupIndex, patch.switchId);
         assertInteger(patch.modeCode, 0, 4, 'modeCode');
         plan(offset, [patch.modeCode]);
         footprints.push({ fieldRange: { offset, length: 1 }, cubeSuiteRange: { offset, length: 1 },
-          provenance: 'checkedFootSwitchMode 0x1000898a9, 0x100089ad7..0x100089adf' });
+          provenance: patch.scope === 'mixed' ? 'checkedFootSwitchMode 0x100089b0b..0x100089ce2'
+            : 'checkedFootSwitchMode 0x1000898a9, 0x100089ad7..0x100089adf' });
+        break;
+      }
+      case 'keyboard': {
+        assertKeys(patch, ['kind', 'scope', 'groupIndex', 'switchId', 'combination']);
+        if (patch.scope !== 'keyboard' && patch.scope !== 'mixed') throw new RangeError('Unknown keyboard scope');
+        assertKeys(patch.combination, ['modifier1', 'modifier2', 'key']);
+        const offset = patch.scope === 'keyboard' ? keyboardSwitchOffset(patch.groupIndex, patch.switchId)
+          : mixedSwitchOffset(patch.groupIndex, patch.switchId) + 2;
+        plan(offset, encodeKeyboardCombination(patch.combination));
+        for (let index = 0; index < 3; index++) {
+          footprints.push({ fieldRange: { offset: offset + index, length: 1 },
+            cubeSuiteRange: { offset: offset + index, length: 1 },
+            provenance: 'comBoxChange 0x10008a058..0x10008a384; mixed 0x10008a3b6..0x10008a78d' });
+        }
+        break;
+      }
+      case 'mixedType':
+      case 'turnerKey': {
+        const isType = patch.kind === 'mixedType';
+        assertKeys(patch, isType ? ['kind', 'groupIndex', 'switchId', 'typeCode'] : ['kind', 'groupIndex', 'switchId', 'keyIndex']);
+        const offset = mixedSwitchOffset(patch.groupIndex, patch.switchId) + (isType ? 0 : 1);
+        const value = patch.kind === 'mixedType' ? patch.typeCode : patch.keyIndex;
+        assertInteger(value, 0, isType ? 2 : 9, isType ? 'typeCode' : 'keyIndex');
+        plan(offset, [value]);
+        footprints.push({ fieldRange: { offset, length: 1 }, cubeSuiteRange: { offset, length: 1 },
+          provenance: isType ? 'checkedMixKeyType 0x10008688f..0x10008693f' : 'comBoxChange 0x10008ab43..0x10008abf4' });
         break;
       }
       case 'message':
@@ -84,7 +139,7 @@ export function applyFcpPatches(image: Uint8Array, patches: readonly FcpPatch[])
           plan(offset, [0]);
         } else {
           const message = patch.message;
-          assertKeys(message, ['type', 'channel', 'program', 'controller', 'value']);
+          assertKeys(message, ['type', 'channel', 'program', 'controller', 'value', 'note', 'velocity']);
           assertInteger(message.channel, 1, 16, 'channel');
           if (message.type === 'pc') {
             assertKeys(message, ['type', 'channel', 'program']);
@@ -98,16 +153,21 @@ export function applyFcpPatches(image: Uint8Array, patches: readonly FcpPatch[])
             assertInteger(message.value, 0, 127, 'value');
             plan(offset, [1, message.channel - 1, 1, message.controller, message.value]);
             length = 5;
+          } else if (message.type === 'noteOn' || message.type === 'noteOff') {
+            assertKeys(message, ['type', 'channel', 'note', 'velocity']);
+            assertInteger(message.note, 0, 127, 'note');
+            assertInteger(message.velocity, 0, 127, 'velocity');
+            plan(offset, [1, message.channel - 1, message.type === 'noteOn' ? 2 : 3, message.note, message.velocity]);
+            length = 5;
           } else {
-            throw new RangeError('Only observed PC/CC record edits are supported');
+            throw new RangeError('Unknown MIDI record type');
           }
         }
         footprints.push({ fieldRange: { offset, length },
-          cubeSuiteRange: patch.location.scope === 'interface'
-            ? { offset: FCP_LAYOUT.interfaceBankOffset, length: 80 }
+          cubeSuiteRange: patch.location.scope === 'mixed' ? { offset: FCP_LAYOUT.mixOffset, length: FCP_LAYOUT.mixLength }
             : { offset: FCP_LAYOUT.advancedOffset, length: FCP_LAYOUT.advancedLength },
-          provenance: patch.location.scope === 'interface'
-            ? 'editInterface 0x10008c8a0; updateInterfaceList 0x10008c480'
+          provenance: patch.location.scope === 'mixed'
+            ? 'editBankA 0x10008dec3..0x10008e90d; updateAList 0x100088a0e..0x100088a3c; updateBList 0x10008959e..0x1000895cc'
             : 'editBankA 0x10008daa5..0x10008db1c; updateAList 0x1000884d5..0x100088504; updateBList 0x100089065..0x100089094',
         });
         break;

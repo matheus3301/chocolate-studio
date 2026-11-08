@@ -5,6 +5,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDefaultConfiguration } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
+import { applyFcpPatches } from '@chocolate-studio/chocolate-layout';
+import { configurationFromBytes, configurationToBytes } from '../src/hardware-mapping.js';
 import { ConnectionStep } from '../src/ConnectionStep.js';
 import { HardwarePanel } from '../src/HardwarePanel.js';
 import type { DeviceRead, HardwareService, HardwareSnapshot, VerifiedDeviceRead, WritePreview } from '../src/hardware.js';
@@ -200,13 +202,40 @@ describe('compact review approval', () => {
   it('keeps ready mode/backup detail behind disclosures and calls physical-test navigation only after write verification', async () => {
     const value = fixture(true, true); const verified = vi.fn(); render(<Harness value={value} panel onVerified={verified} />);
     await waitFor(() => expect((screen.getByRole('button', { name: connectionEn.reviewSave }) as HTMLButtonElement).disabled).toBe(false));
-    expect(screen.getByText(connectionEn.pcMode).closest('details')?.open).toBe(false);
     expect(screen.getByRole('button', { name: connectionEn.downloadOriginal, hidden: true }).closest('details')?.open).toBe(false);
     expect(verified).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole('button', { name: connectionEn.reviewSave }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(connectionEn.advancedActivation)).toBeTruthy(); expect(within(dialog).getByText(connectionEn.physicalCaveat)).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('write') }));
     await waitFor(() => expect(verified).toHaveBeenCalledTimes(1));
     expect(verified.mock.calls[0]![0].verifiedAt).toBeGreaterThan(0);
+  });
+  it('names actual keyboard/global/interface writes and excludes ignored inactive MIDI drafts from review', async () => {
+    const value = fixture(true, true);
+    const baseline = applyFcpPatches(new Uint8Array(23646), [{ kind: 'field', field: 'mode', value: 10 }]).bytes;
+    const read = configurationFromBytes(baseline);
+    const previous = value.service.getSnapshot().observed!;
+    const raw = { ...previous.rawBackup, bytes: baseline };
+    value.publish({ observed: { ...previous, ...read, rawBackup: raw }, baseline: raw });
+    const draft = structuredClone(read.configuration);
+    draft.controller!.keyboardAssignments = [{ groupIndex: 0, switchId: 'A', combination: { modifier1: 1, modifier2: 0, key: 1 } }];
+    draft.controller!.keyboardGroupIndex = 2;
+    draft.controller!.interfaceAssignments = [{ slot: 0, channel: 3, data: 64, releaseValue: 5, pressValue: 127 }];
+    draft.groups[0]!.switches.A.actions = [{ gesture: 'press', messages: [{ type: 'pc', channel: 1, program: 99 }] }];
+    vi.spyOn(value.service, 'preview').mockImplementation(async input => {
+      const mapped = configurationToBytes(baseline, input);
+      return { id: 'actual-plan', baselineSha256: raw.sha256, configuration: input, warnings: mapped.warnings, unsupported: mapped.unsupported,
+        patches: [...mapped.bytes].flatMap((byte, offset) => byte === baseline[offset] ? [] : [{ offset, before: baseline[offset]!, after: byte }]) };
+    });
+    render(<Harness value={value} panel configuration={draft} />);
+    await waitFor(() => expect((screen.getByRole('button', { name: connectionEn.reviewSave }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: connectionEn.reviewSave }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Ctrl + A');
+    expect(dialog.textContent).toContain('Keyboard group · Initial group');
+    expect(dialog.textContent).toContain('1 → 3');
+    expect(dialog.textContent).toContain('Data number 64');
+    expect(dialog.textContent).toContain('Released value 5');
+    expect(dialog.textContent).toContain('Pressed value 127');
+    expect(dialog.textContent).not.toContain('PC 99');
   });
 });

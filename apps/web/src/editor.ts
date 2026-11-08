@@ -57,9 +57,11 @@ export function applyPreset(configuration: StudioConfiguration, groupId: string,
 }
 
 export function destinationIsUsed(configuration: StudioConfiguration, destinationId: string): boolean {
-  return configuration.presets.some((preset) => preset.destinationId === destinationId) || configuration.groups.some((group) =>
-    SWITCH_IDS.some((id) => group.switches[id].actions.some((action) => action.messages.some((message) => message.destinationId === destinationId)) ||
-      group.switches[id].secondaryMessages?.some((message) => message.destinationId === destinationId)));
+  const used = (group: Group) => SWITCH_IDS.some((id) =>
+    group.switches[id].actions.some((action) => action.messages.some((message) => message.destinationId === destinationId)) ||
+    group.switches[id].secondaryMessages?.some((message) => message.destinationId === destinationId));
+  return configuration.presets.some((preset) => preset.destinationId === destinationId) ||
+    configuration.groups.some(used) || configuration.mixedGroups?.some(used) === true;
 }
 
 export function validConfiguration(configuration: StudioConfiguration): StudioConfiguration {

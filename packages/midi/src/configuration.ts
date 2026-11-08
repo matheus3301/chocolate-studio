@@ -4,6 +4,7 @@ import type { ProgramChange } from './messages.js';
 import { equipmentActionInvocationSchema, equipmentProfileReferenceSchema } from './equipment-schema.js';
 import { compileEquipmentAction, getEquipmentProfile, sameMidiMessages } from './equipment.js';
 import { safeJsonTreeSchema } from './safe-json.js';
+import { controllerSettingsSchema } from './controller.js';
 
 /** Application resource limits, not claims about controller capabilities. */
 export const CONFIGURATION_LIMITS = Object.freeze({
@@ -89,7 +90,10 @@ const configurationShapeSchema = z.strictObject({
   name: nameSchema,
   destinations: z.array(destinationSchema).max(CONFIGURATION_LIMITS.destinations),
   groups: z.array(groupSchema).min(1).max(CONFIGURATION_LIMITS.groups),
+  /** Independent Mix MIDI draft. Absence is no edit intent, never a copy of Advanced. */
+  mixedGroups: z.array(groupSchema).max(6).optional(),
   presets: z.array(presetSchema).max(CONFIGURATION_LIMITS.presets),
+  controller: controllerSettingsSchema.optional(),
 }).superRefine((value, ctx) => {
   const ids = new Set<string>([value.id]);
   const destinations = new Set(value.destinations.map((destination) => destination.id));
@@ -113,17 +117,21 @@ const configurationShapeSchema = z.strictObject({
     reference(preset.destinationId, ['presets', i, 'destinationId']);
   });
   let totalMessages = 0;
-  value.groups.forEach((group, i) => {
-    register(group.id, ['groups', i, 'id']);
+  const groupSets = [
+    { scope: 'groups', groups: value.groups },
+    { scope: 'mixedGroups', groups: value.mixedGroups ?? [] },
+  ] as const;
+  for (const { scope, groups } of groupSets) groups.forEach((group, i) => {
+    register(group.id, [scope, i, 'id']);
     for (const key of SWITCH_IDS) {
       const footswitch = group.switches[key];
       if (value.formatVersion === 1 && footswitch.actionBindings !== undefined) {
-        ctx.addIssue({ code: 'custom', path: ['groups', i, 'switches', key, 'actionBindings'], message: 'Equipment metadata requires formatVersion 2' });
+        ctx.addIssue({ code: 'custom', path: [scope, i, 'switches', key, 'actionBindings'], message: 'Equipment metadata requires formatVersion 2' });
       }
       for (const sequence of ['primary', 'secondary'] as const) {
         const binding = footswitch.actionBindings?.[sequence];
         if (!binding) continue;
-        const path = ['groups', i, 'switches', key, 'actionBindings', sequence];
+        const path = [scope, i, 'switches', key, 'actionBindings', sequence];
         const destination = value.destinations.find((entry) => entry.id === binding.destinationId);
         const raw = sequence === 'primary' ? footswitch.actions[0]?.messages ?? [] : footswitch.secondaryMessages ?? [];
         if (!destination || destination.profile?.modelId !== binding.modelId ||
@@ -150,13 +158,13 @@ const configurationShapeSchema = z.strictObject({
       group.switches[key].actions.forEach((action, j) => {
         totalMessages += action.messages.length;
         action.messages.forEach((message, k) => {
-          reference(message.destinationId, ['groups', i, 'switches', key, 'actions', j, 'messages', k, 'destinationId']);
+          reference(message.destinationId, [scope, i, 'switches', key, 'actions', j, 'messages', k, 'destinationId']);
         });
       });
       const secondary = group.switches[key].secondaryMessages ?? [];
       totalMessages += secondary.length;
       secondary.forEach((message, k) => {
-        reference(message.destinationId, ['groups', i, 'switches', key, 'secondaryMessages', k, 'destinationId']);
+        reference(message.destinationId, [scope, i, 'switches', key, 'secondaryMessages', k, 'destinationId']);
       });
     }
   });

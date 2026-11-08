@@ -3,7 +3,8 @@ import { ChocolateError } from '@chocolate-studio/chocolate';
 import type { Transport } from '@chocolate-studio/chocolate';
 import { studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
-import { decodeFcp } from '@chocolate-studio/chocolate-layout';
+import { decodeFcp, FCP_LAYOUT } from '@chocolate-studio/chocolate-layout';
+import type { ByteRange } from '@chocolate-studio/chocolate-layout';
 import type { DeviceIdentity, DeviceRead, HardwareEvent, HardwareService, HardwareSnapshot, OriginalBackupConfirmation, PortSelection, RawBackup, VerifiedDeviceRead, WritePreview } from './hardware';
 import { HARDWARE_HISTORY_LIMIT } from './hardware';
 import { configurationFromBytes, configurationToBytes } from './hardware-mapping';
@@ -48,7 +49,7 @@ export function createBrowserHardware(): HardwareService {
   let baseline: RawBackup | null = null;
   let observed: DeviceRead | null = null;
   let backupSafety: OriginalBackupConfirmation | null = null;
-  let pending: { preview: WritePreview; bytes: Uint8Array; baseline: Uint8Array; epoch: number } | null = null;
+  let pending: { preview: WritePreview; bytes: Uint8Array; baseline: Uint8Array; writeRanges: ByteRange[]; epoch: number } | null = null;
 
   function publish(patch: Partial<HardwareSnapshot>) {
     state = { ...state, ...patch };
@@ -109,21 +110,38 @@ export function createBrowserHardware(): HardwareService {
   function backupReady(): boolean {
     return baseline !== null && backupSafety?.baselineId === baseline.id && backupSafety.sha256 === baseline.sha256;
   }
-  async function applyBytes(session: ProtocolSession, before: Uint8Array, after: Uint8Array, generation: number) {
-    // CubeSuite rewrites this whole advanced-bank region after message edits.
-    // Preserve its opaque bytes and activate the requested mode only after data.
-    const banksStart = 0x5d, banksEnd = 0x347d;
-    if (!equal(before.slice(banksStart, banksEnd), after.slice(banksStart, banksEnd))) {
-      await session.writeAndVerify(banksStart, after.slice(banksStart, banksEnd), { signal: abort.signal });
+  async function applyBytes(session: ProtocolSession, before: Uint8Array, after: Uint8Array, generation: number, writeRanges?: ByteRange[]) {
+    // Use the observed handler footprints, always retaining opaque bytes inside them.
+    // Restore has no edit intent: cover its known banks, then remaining changed runs.
+    const ranges = writeRanges ?? [
+      { offset: FCP_LAYOUT.interfaceBankOffset, length: 80 },
+      { offset: FCP_LAYOUT.advancedOffset, length: FCP_LAYOUT.advancedLength },
+      { offset: FCP_LAYOUT.mixOffset, length: FCP_LAYOUT.mixLength },
+    ];
+    const regions: ByteRange[] = [];
+    for (const range of ranges.filter(range => range.offset !== 0).sort((a, b) => a.offset - b.offset || b.length - a.length)) {
+      const previous = regions.at(-1);
+      if (previous && range.offset < previous.offset + previous.length) {
+        previous.length = Math.max(previous.length, range.offset + range.length - previous.offset);
+      } else regions.push({ ...range });
     }
+    for (const range of regions) {
+      const end = range.offset + range.length;
+      if (equal(before.subarray(range.offset, end), after.subarray(range.offset, end))) continue;
+      if (generation !== epoch) return fail('hardware.disconnected');
+      await session.writeAndVerify(range.offset, after.slice(range.offset, end), { signal: abort.signal });
+    }
+    let regionIndex = 0;
     for (let offset = 1; offset < after.length;) {
-      if (offset === banksStart) { offset = banksEnd; continue; }
+      const region = regions[regionIndex];
+      if (region && offset === region.offset) { offset += region.length; regionIndex++; continue; }
       if (before[offset] === after[offset]) { offset++; continue; }
       const start = offset;
-      while (offset < after.length && offset !== banksStart && before[offset] !== after[offset] && offset - start < 1024) offset++;
+      while (offset < after.length && offset !== region?.offset && before[offset] !== after[offset] && offset - start < 1024) offset++;
       if (generation !== epoch) return fail('hardware.disconnected');
       await session.writeAndVerify(start, after.slice(start, offset), { signal: abort.signal });
     }
+    if (generation !== epoch) return fail('hardware.disconnected');
     if (before[0] !== after[0]) await session.writeAndVerify(0, after.slice(0, 1), { signal: abort.signal });
     const actual = (await session.readConfiguration({ signal: abort.signal })).snapshot.toUint8Array();
     if (!equal(actual, after)) return fail('hardware.verifyMismatch');
@@ -230,11 +248,16 @@ export function createBrowserHardware(): HardwareService {
       if (!protocol || !observed) return fail('hardware.readFirst');
       const valid = studioConfigurationSchema.parse(configuration);
       const before = observed.rawBackup.bytes;
+      // Legacy intent cannot silently select Advanced against a connected image.
+      valid.controller = { ...valid.controller, mode: valid.controller?.mode ?? before[0]! };
       const mapped = configurationToBytes(before, valid);
+      // Reconcile/validate target metadata before sending anything. A schema failure
+      // must not first surface after ACK and successful full-device verification.
+      const plannedConfiguration = mapped.unsupported.length ? valid : configurationFromBytes(mapped.bytes, valid).configuration;
       const preview: WritePreview = { id: crypto.randomUUID(), baselineSha256: observed.rawBackup.sha256,
-        configuration: clone(valid), patches: [], warnings: mapped.warnings, unsupported: mapped.unsupported };
+        configuration: clone(plannedConfiguration), patches: [], warnings: mapped.warnings, unsupported: mapped.unsupported };
       for (let i = 0; i < before.length; i++) if (before[i] !== mapped.bytes[i]) preview.patches.push({ offset: i, before: before[i]!, after: mapped.bytes[i]! });
-      pending = { preview: clone(preview), bytes: mapped.bytes.slice(), baseline: before.slice(), epoch };
+      pending = { preview: clone(preview), bytes: mapped.bytes.slice(), baseline: before.slice(), writeRanges: mapped.writeRanges, epoch };
       return clone(preview);
     },
     write(previewId) {
@@ -246,7 +269,7 @@ export function createBrowserHardware(): HardwareService {
       return operation(async (session, generation) => {
         const current = (await session.readConfiguration({ signal: abort.signal })).snapshot.toUint8Array();
         if (!equal(current, plan.baseline)) return fail('hardware.conflict');
-        const actual = await applyBytes(session, current, plan.bytes, generation);
+        const actual = await applyBytes(session, current, plan.bytes, generation, plan.writeRanges);
         if (generation !== epoch) return fail('hardware.disconnected');
         const read = await makeRead(actual, state.identity!, plan.preview.configuration);
         if (generation !== epoch) return fail('hardware.disconnected');

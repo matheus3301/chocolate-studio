@@ -1,11 +1,14 @@
 import {
-  FCP_FIELDS, FCP_LAYOUT, SWITCH_IDS, advancedSwitchOffset, assertFcpImage,
+  FCP_FIELDS, FCP_LAYOUT, SWITCH_IDS, advancedSwitchOffset, assertFcpImage, keyboardSwitchOffset, mixedSwitchOffset,
 } from './layout.js';
-import type { ByteRange, FcpField, SwitchId } from './layout.js';
+import type { ByteRange, FcpField, SwitchId, InterfaceAssignment } from './layout.js';
+import { FCP_KEYBOARD_KEYS } from './keyboard.js';
+import type { KeyboardCombination } from './keyboard.js';
 
 export type PcCcMessage =
   | { type: 'pc'; channel: number; program: number }
   | { type: 'cc'; channel: number; controller: number; value: number };
+export type FcpMessage = PcCcMessage | { type: 'noteOn' | 'noteOff'; channel: number; note: number; velocity: number };
 
 export interface LayoutIssue {
   offset: number;
@@ -21,9 +24,9 @@ export interface DecodedRecord {
   typeCode: number;
   data1: number;
   data2: number;
-  interpretation: 'empty' | 'pc' | 'cc' | 'opaque' | 'invalid';
-  /** Only validated PC/CC is interpreted. Other records remain raw and unmodified. */
-  message: PcCcMessage | null;
+  interpretation: 'empty' | 'pc' | 'cc' | 'noteOn' | 'noteOff' | 'opaque' | 'invalid';
+  /** Validated standard records only; custom/unknown records remain raw. */
+  message: FcpMessage | null;
 }
 export interface DecodedBank {
   range: ByteRange;
@@ -43,11 +46,35 @@ export interface DecodedGroup {
   range: ByteRange;
   switches: Record<SwitchId, DecodedSwitch>;
 }
+export interface DecodedKeyboard {
+  offset: number;
+  raw: [number, number, number];
+  combination: KeyboardCombination | null;
+}
+export interface DecodedKeyboardGroup { groupIndex: number; switches: Record<SwitchId, DecodedKeyboard> }
+export interface DecodedMixedSwitch extends DecodedSwitch {
+  typeCode: number;
+  turnerKeyIndex: number;
+  keyboard: DecodedKeyboard;
+}
+export interface DecodedMixedGroup { groupIndex: number; switches: Record<SwitchId, DecodedMixedSwitch> }
+export interface DecodedInterfaceRecord {
+  offset: number;
+  enabled: number;
+  channelIndex: number;
+  data: number;
+  releaseValue: number;
+  pressValue: number;
+  assignment: InterfaceAssignment | null;
+}
+export interface DecodedInterfaceBank { range: ByteRange; records: DecodedInterfaceRecord[] }
 export interface DecodedFcp {
   mode: number;
   globals: Record<Exclude<FcpField, 'mode'>, number>;
-  interfaceBank: DecodedBank;
+  interfaceBank: DecodedInterfaceBank;
   advancedGroups: DecodedGroup[];
+  keyboardGroups: DecodedKeyboardGroup[];
+  mixedGroups: DecodedMixedGroup[];
   /** Observed UI-domain violations, never silent repairs. Unknown bytes are accepted. */
   issues: LayoutIssue[];
 }
@@ -68,19 +95,20 @@ function decodeBank(image: Uint8Array, offset: number, customRange: ByteRange | 
     const data1 = image[at + 3]!;
     const data2 = image[at + 4]!;
     let interpretation: DecodedRecord['interpretation'] = enabled === 0 ? 'empty' : 'opaque';
-    let message: PcCcMessage | null = null;
+    let message: FcpMessage | null = null;
     if (enabled !== 0) {
       let valid = checkValue(issues, at, 'enabled', enabled, 0, 1);
       valid = checkValue(issues, at + 2, 'typeCode', typeCode, 0, 4) && valid;
-      if (typeCode === 0 || typeCode === 1) {
+      if (typeCode >= 0 && typeCode <= 3) {
         valid = checkValue(issues, at + 1, 'channelIndex', channelIndex, 0, 15) && valid;
         valid = checkValue(issues, at + 3, 'data1', data1, 0, 127) && valid;
-        if (typeCode === 1) valid = checkValue(issues, at + 4, 'data2', data2, 0, 127) && valid;
+        if (typeCode !== 0) valid = checkValue(issues, at + 4, 'data2', data2, 0, 127) && valid;
         if (valid) {
-          interpretation = typeCode === 0 ? 'pc' : 'cc';
+          interpretation = typeCode === 0 ? 'pc' : typeCode === 1 ? 'cc' : typeCode === 2 ? 'noteOn' : 'noteOff';
           message = typeCode === 0
             ? { type: 'pc', channel: channelIndex + 1, program: data1 }
-            : { type: 'cc', channel: channelIndex + 1, controller: data1, value: data2 };
+            : typeCode === 1 ? { type: 'cc', channel: channelIndex + 1, controller: data1, value: data2 }
+              : { type: typeCode === 2 ? 'noteOn' : 'noteOff', channel: channelIndex + 1, note: data1, velocity: data2 };
         }
       }
       if (!valid) interpretation = 'invalid';
@@ -88,6 +116,47 @@ function decodeBank(image: Uint8Array, offset: number, customRange: ByteRange | 
     records.push({ offset: at, enabled, channelIndex, typeCode, data1, data2, interpretation, message });
   }
   return { range: { offset, length: 80 }, records, customRange };
+}
+
+function decodeKeyboard(image: Uint8Array, offset: number, issues: LayoutIssue[]): DecodedKeyboard {
+  const raw: [number, number, number] = [image[offset]!, image[offset + 1]!, image[offset + 2]!];
+  let valid = true;
+  for (let index = 0; index < 2; index++) {
+    const value = raw[index]!;
+    if (value !== 0) valid = checkValue(issues, offset + index, 'keyboardModifier', value, 63, 66) && valid;
+  }
+  valid = checkValue(issues, offset + 2, 'keyboardKey', raw[2], 0, FCP_KEYBOARD_KEYS.length - 1) && valid;
+  if (raw[0] !== 0 && raw[0] === raw[1]) {
+    issues.push({ offset: offset + 1, field: 'duplicateKeyboardModifier', value: raw[1], min: 0, max: 0 });
+    valid = false;
+  }
+  return { offset, raw, combination: valid ? {
+    modifier1: raw[0] === 0 ? 0 : raw[0] - 62,
+    modifier2: raw[1] === 0 ? 0 : raw[1] - 62, key: raw[2],
+  } : null };
+}
+
+function decodeInterface(image: Uint8Array, issues: LayoutIssue[]): DecodedInterfaceBank {
+  const records: DecodedInterfaceRecord[] = [];
+  for (let slot = 0; slot < 16; slot++) {
+    const offset = FCP_LAYOUT.interfaceBankOffset + slot * 5;
+    const enabled = image[offset]!;
+    const channelIndex = image[offset + 1]!;
+    const data = image[offset + 2]!;
+    const releaseValue = image[offset + 3]!;
+    const pressValue = image[offset + 4]!;
+    let valid = enabled === 1;
+    if (enabled !== 0) {
+      valid = checkValue(issues, offset, 'interfaceEnabled', enabled, 0, 1) && valid;
+      valid = checkValue(issues, offset + 1, 'interfaceChannelIndex', channelIndex, 0, 15) && valid;
+      valid = checkValue(issues, offset + 2, 'interfaceData', data, 0, 127) && valid;
+      valid = checkValue(issues, offset + 3, 'interfaceReleaseValue', releaseValue, 0, 127) && valid;
+      valid = checkValue(issues, offset + 4, 'interfacePressValue', pressValue, 0, 127) && valid;
+    }
+    records.push({ offset, enabled, channelIndex, data, releaseValue, pressValue,
+      assignment: valid ? { channel: channelIndex + 1, data, releaseValue, pressValue } : null });
+  }
+  return { range: { offset: FCP_LAYOUT.interfaceBankOffset, length: 80 }, records };
 }
 
 /** Exact-size structural decoding; no signature/device/version detection is available. */
@@ -120,8 +189,31 @@ export function decodeFcp(image: Uint8Array): DecodedFcp {
       switches,
     });
   }
+  const keyboardGroups: DecodedKeyboardGroup[] = [];
+  const mixedGroups: DecodedMixedGroup[] = [];
+  for (let groupIndex = 0; groupIndex < FCP_LAYOUT.mixGroupCount; groupIndex++) {
+    const keyboards = {} as Record<SwitchId, DecodedKeyboard>;
+    const mixed = {} as Record<SwitchId, DecodedMixedSwitch>;
+    for (const switchId of SWITCH_IDS) {
+      keyboards[switchId] = decodeKeyboard(image, keyboardSwitchOffset(groupIndex, switchId), issues);
+      const offset = mixedSwitchOffset(groupIndex, switchId);
+      const typeCode = image[offset]!;
+      const turnerKeyIndex = image[offset + 1]!;
+      const modeCode = image[offset + 5]!;
+      checkValue(issues, offset, 'mixedType', typeCode, 0, 2);
+      checkValue(issues, offset + 1, 'turnerKeyIndex', turnerKeyIndex, 0, 9);
+      checkValue(issues, offset + 5, 'switchMode', modeCode, 0, 4);
+      mixed[switchId] = { switchId, offset, typeCode, turnerKeyIndex, modeCode,
+        keyboard: decodeKeyboard(image, offset + 2, issues),
+        bankA: decodeBank(image, offset + 6, { offset: offset + 0xa6, length: 128 }, issues),
+        bankB: decodeBank(image, offset + 0x56, { offset: offset + 0x126, length: 128 }, issues),
+      };
+    }
+    keyboardGroups.push({ groupIndex, switches: keyboards });
+    mixedGroups.push({ groupIndex, switches: mixed });
+  }
   const { mode, ...globals } = fields;
-  return { mode, globals, advancedGroups, issues,
-    interfaceBank: decodeBank(image, FCP_LAYOUT.interfaceBankOffset, null, issues),
+  return { mode, globals, advancedGroups, keyboardGroups, mixedGroups, issues,
+    interfaceBank: decodeInterface(image, issues),
   };
 }
