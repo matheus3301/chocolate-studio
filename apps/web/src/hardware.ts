@@ -26,7 +26,7 @@ export interface ControllerReadMetadata {
   ccMaxGroupIndex: number | null;
 }
 export interface DeviceRead {
-  /** Mapped intent only; bytes not represented here remain in rawBackup. */
+  /** Independent Advanced/Mixed intent plus raw controller settings; opaque bytes remain in rawBackup. */
   configuration: StudioConfiguration;
   rawBackup: RawBackup;
   readAt: number;
@@ -42,6 +42,7 @@ export interface WritePreview {
   /** Adapter-owned token, bound to this session and exact complete baseline hash. */
   id: string;
   baselineSha256: string;
+  /** Complete draft; browser adapter makes the target mode explicit, including legacy intent. */
   configuration: StudioConfiguration;
   patches: BytePatch[];
   warnings: string[];
@@ -101,7 +102,7 @@ export interface HardwareService {
   read(): Promise<DeviceRead>;
   /** UI/storage attestation; must match the adapter-owned original baseline. */
   acknowledgeBackup(confirmation: OriginalBackupConfirmation): Promise<void>;
-  /** Preserve unknown bytes; reject every unsupported requested field. No MIDI write. */
+  /** Preserve inactive/unknown bytes; reject unsupported intent. Complete controller/mode preview, no MIDI write. */
   preview(configuration: StudioConfiguration): Promise<WritePreview>;
   /** Consume current preview, patch serially, require success ACK and full reread. */
   write(previewId: string): Promise<VerifiedDeviceRead>;

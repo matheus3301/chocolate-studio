@@ -19,5 +19,6 @@ export function previewIsCurrent(approval: PreviewApproval, draftSignature: stri
     approval.ports === JSON.stringify(snapshot.selection) && approval.readId !== null &&
     approval.readId === snapshot.observed?.rawBackup.id &&
     approval.preview.baselineSha256 === snapshot.observed.rawBackup.sha256 &&
-    snapshot.identity !== null && snapshot.capabilities.write && snapshot.status !== 'error';
+    snapshot.identity !== null && snapshot.selection !== null &&
+    snapshot.capabilities.preview && snapshot.capabilities.write && snapshot.status === 'connected';
 }
