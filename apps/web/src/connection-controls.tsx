@@ -1,3 +1,5 @@
+import { getControllerMode } from '@chocolate-studio/midi';
+import { useModeTranslation } from './mode-i18n.js';
 import type { ControllerReadMetadata } from './hardware.js';
 import type { OriginalBackupState } from './connection-backup.js';
 import { useConnectionTranslation } from './connection-i18n.js';
@@ -14,7 +16,8 @@ export function OriginalBackupControls({ backup }: { backup: OriginalBackupState
 }
 
 export function ControllerModeNotice({ controller }: { controller?: ControllerReadMetadata }) {
-  const { ct } = useConnectionTranslation();
+  const { mt, locale } = useModeTranslation();
   if (!controller) return null;
-  return <p className="helper controller-mode" role="status">{ct(controller.modeKind === 'program-change' ? 'pcMode' : controller.modeKind === 'advanced' ? 'advancedMode' : 'otherMode')}</p>;
+  const mode = getControllerMode(controller.rawMode);
+  return <p className="helper controller-mode" role="status">{mt('current')}: <strong>{mode?.label[locale] ?? mt('unknown')}</strong></p>;
 }

@@ -6,12 +6,14 @@ import { validConfiguration } from './editor.js';
 import { database } from './storage.js';
 import { Dialog, Icon } from './components.js';
 import { MusicalReview } from './MusicalReview.js';
+import { ControllerReview } from './ControllerReview.js';
 import { connectionFailureKey, exportControllerBackup, originalBackupIsSafe, useOriginalBackup } from './connection-backup.js';
 import type { StoredRawBackup } from './connection-backup.js';
 import { ControllerModeNotice, OriginalBackupControls } from './connection-controls.js';
 import { useConnectionTranslation } from './connection-i18n.js';
 import { bindPreview, previewIsCurrent } from './connection-preview.js';
 import type { PreviewApproval } from './connection-preview.js';
+import { configurationFromBytes } from './hardware-mapping.js';
 
 export interface HardwarePanelProps {
   service: HardwareService;
@@ -49,6 +51,13 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
   const readId = state.observed?.rawBackup.id;
   const currentApproval = approval && previewIsCurrent(approval, signature, state) ? approval : null;
   const preview = currentApproval?.preview;
+  const reviewedConfiguration = useMemo(() => {
+    if (!preview || !state.observed) return null;
+    const projected = state.observed.rawBackup.bytes.slice();
+    for (const patch of preview.patches) projected[patch.offset] = patch.after;
+    // Decode the actual byte plan, not inactive draft edits the mapper will ignore.
+    return configurationFromBytes(projected, preview.configuration).configuration;
+  }, [preview, state.observed]);
 
   useEffect(() => {
     active.current = true;
@@ -166,9 +175,8 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
     <details><summary>{ct('historyDetails')}</summary><ol>{state.history.map(event => <li key={event.id}>{new Date(event.time).toLocaleTimeString(i18n.language)} · {t(event.summary, { defaultValue: event.summary })}</li>)}</ol></details>
 
     {preview && <Dialog title={t('writeReview')} onClose={() => { if (!busy) { previewGeneration.current++; setApproval(null); } }}>
-      {state.observed && <MusicalReview device before={state.observed.configuration} after={preview.configuration} />}
+      {state.observed && reviewedConfiguration && <><ControllerReview device before={state.observed.configuration} after={reviewedConfiguration} {...(state.observed.controller ? { beforeMode: state.observed.controller.rawMode } : {})} />{reviewedConfiguration.controller?.mode === 3 && <MusicalReview device before={state.observed.configuration} after={reviewedConfiguration} />}</>}
       <p className="helper">{ct('physicalCaveat')}</p>
-      {state.observed?.controller?.modeKind !== 'advanced' && <p className="warning-text">{ct('advancedActivation')}</p>}
       {[...preview.warnings, ...preview.unsupported].map((warning, index) => <p className="warning-text" key={`${warning}-${index}`}>{t(warning, { defaultValue: warning })}</p>)}
       <details className="technical-review"><summary>{t('technicalDetails')}</summary><p>{t('patchCount', { count: preview.patches.length })}</p><p className="hash">SHA256 {preview.baselineSha256}</p>
         <div className="diff-scroll"><table><thead><tr><th>{t('offset')}</th><th>{t('before')}</th><th>{t('after')}</th></tr></thead><tbody>{preview.patches.slice(page * 100, (page + 1) * 100).map(patch =>

@@ -2,8 +2,9 @@ import { SWITCH_IDS, compileEquipmentAction } from '@chocolate-studio/midi';
 import type { Destination, EquipmentProfile, EquipmentSequence, MidiMessage, StudioConfiguration, SwitchConfiguration } from '@chocolate-studio/midi';
 
 export function destinationHasBindings(configuration: StudioConfiguration, destinationId: string): boolean {
-  return configuration.groups.some((group) => SWITCH_IDS.some((id) =>
-    Object.values(group.switches[id].actionBindings ?? {}).some((binding) => binding?.destinationId === destinationId)));
+  const bound = (group: StudioConfiguration['groups'][number]) => SWITCH_IDS.some((id) =>
+    Object.values(group.switches[id].actionBindings ?? {}).some((binding) => binding?.destinationId === destinationId));
+  return configuration.groups.some(bound) || configuration.mixedGroups?.some(bound) === true;
 }
 
 export function destinationProfile(destination: Destination | undefined, profiles: readonly EquipmentProfile[]): EquipmentProfile | undefined {
