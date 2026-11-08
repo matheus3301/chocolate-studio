@@ -118,15 +118,15 @@ identifiers are needed. Do not use privileged `pull_request_target` to run PR co
 Caching is disabled to keep this initial workflow simple. CI validates source;
 it neither publishes packages nor proves any hardware capability.
 
-## Static deployment design — not implemented or released
+## Static deployment
 
 The product is entirely client-side, in PT-BR and English, with generic MIDI
 destinations/profiles. The static server is hosting infrastructure, not an
 application backend. Do not add an API service, database service, or server-side
 configuration/MIDI proxy.
 
-The coordinator will assign the runtime build once a real frontend exists. The
-Dockerfile design for that task is:
+The root Dockerfile now builds `apps/web/dist` and serves it through a pinned,
+non-root nginx runtime. The governing design is:
 
 1. A Node 22.22.3 build stage installs pnpm 11.25.0, copies the workspace manifests
    and lockfile, runs a frozen install, then copies source and runs the actual
@@ -148,11 +148,10 @@ Dockerfile design for that task is:
    by itself prove device or SysEx support. Build-time public values are visible
    to users and cannot contain secrets.
 
-No Dockerfile or fake frontend artifact is supplied at this scaffold stage. The
-actual output path, runtime image/digest, health endpoint, and routing policy must
-come from the implemented frontend. A passing library build does not authorize
-publication. Deployment must be smoke-tested by the coordinator on the actual
-static surface before claiming availability.
+The implemented runtime listens on 8080 and provides `/health`. Deployment is
+smoke-tested by the coordinator on the actual static surface; see
+[release qualification](release-qualification.md). A passing library build alone
+does not establish browser or hardware behavior.
 
 ## First working release: v0.1.0
 
@@ -160,8 +159,9 @@ Releases are owned and executed manually by the coordinator. This policy does no
 authorize workers or CI to tag, push, merge, publish, or deploy. The workspace root
 remains private; no npm publication is planned.
 
-Use SemVer tags `vMAJOR.MINOR.PATCH`, starting with `v0.1.0` for the first working
-editor. Optional candidates use `v0.1.0-rc.1`, incrementing the numeric suffix.
+Use SemVer tags `vMAJOR.MINOR.PATCH`, starting with `v0.1.0` for the first stable
+editor. Public beta candidates use `v0.1.0-beta.1`; release candidates use
+`v0.1.0-rc.1`, incrementing the numeric suffix.
 Never move or reuse a released tag. During 0.x, incompatible changes increment the
 minor version; compatible fixes increment patch. Release notes must explicitly
 identify breaking file/profile changes and any migration or recovery limits.
@@ -169,7 +169,8 @@ identify breaking file/profile changes and any migration or recovery limits.
 ### Honest capability matrix
 
 Publish the matrix for each candidate with evidence links and limitations. The
-following is the **scaffold baseline**, not tested product capability:
+following is the historical **scaffold baseline**, not current product capability.
+The current evidence matrix is in [release qualification](release-qualification.md):
 
 | Capability | Baseline status | Required evidence before a support claim |
 | --- | --- | --- |

@@ -16,11 +16,20 @@ The product runs entirely on the client, supports Portuguese and English, and us
 
 ## Status
 
-Initial release integration is in progress. The actual TypeScript library has passed full configuration reads, channel and advanced-bank storage writes, exact readback and restoration on a Chocolate Plus identifying as `FootCtrlPlus_016`. See [hardware evidence](research/experiments/002-bank-library-roundtrip.md) and [layout mapping](packages/chocolate-layout/MAPPING.md).
+The public beta is available at [chocolate-studio.mmonteiro.dev](https://chocolate-studio.mmonteiro.dev). The actual TypeScript library has passed full configuration reads, channel and advanced-bank storage writes, exact readback and restoration on a Chocolate Plus identifying as `FootCtrlPlus_016`. See [hardware evidence](research/experiments/002-bank-library-roundtrip.md), [layout mapping](packages/chocolate-layout/MAPPING.md), and [release qualification](docs/release-qualification.md).
 
 The editor programs PC/CC sequences in advanced mode: up to eight groups, four switches per group and two banks of up to sixteen expanded MIDI messages per switch. Bank selection expands to CC0/CC32 before PC. Names, destination labels and preset libraries are local project metadata. Keyboard/custom opaque records are preserved rather than silently converted.
 
 No firmware-update or factory-reset operation is implemented. Recovery uses an exact configuration backup. Physical footpress behavior and persistence across a power cycle still need separate validation; storage verification alone does not establish them. Other device identities are not enabled for hardware writes.
+
+## Use
+
+1. Open the site in a desktop browser supporting Web MIDI with SysEx. Allow the MIDI permission requested by **Connect pedal → Find MIDI ports**.
+2. Explicitly select the controller's input and output, connect, and read the device. Save a complete device backup before editing.
+3. Review the read configuration into your draft. Choose a group and pedal, then edit PC/CC messages, channels, Bank A/B and behavior. Generic destinations and named presets belong to the local project.
+4. Save/export the project as versioned JSON. Review device changes separately, then apply; the adapter rereads the device and requires an exact byte match before reporting a verified write.
+
+JSON imports replace the draft only after review and automatic local backup. FCP imports are complete device backups, clearly marked unverified until restored and reread; they are not editable project JSON. Browser data stays on this origin/device: export files to transfer or retain an independent copy. There is no offline-install/PWA claim in this beta.
 
 ## Development
 
