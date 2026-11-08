@@ -1,6 +1,6 @@
-# Destination catalog and controller templates — proposal
+# Destination catalog and controller templates
 
-**Review-only data contract. Nothing here is loaded by the application. Do not implement until the product design is approved.** No scripts, dependencies, network service, MIDI sender, or hardware capability are supplied by these files.
+**Research contract, approved for the beta.4 implementation.** The files in this directory remain research artifacts. Runtime profiles live in [`packages/midi/src/equipment-profiles.json`](../../packages/midi/src/equipment-profiles.json), validated and compiled by the MIDI package; see its [authoring/API documentation](../../packages/midi/README.md). Add equipment to that runtime catalog after checking primary sources. The interface renders profile-defined actions and parameters without brand branches. Research templates are not a separate import format in this release; project import/export uses versioned Studio JSON.
 
 ## Review these files
 

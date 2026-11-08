@@ -24,10 +24,15 @@ No firmware-update or factory-reset operation is implemented. Recovery uses an e
 
 ## Use
 
-1. Open the site in a desktop browser supporting Web MIDI with SysEx. Allow the MIDI permission requested by **Connect pedal → Find MIDI ports**.
-2. Explicitly select the controller's input and output, connect, and read the device. Save a complete device backup before editing.
-3. Review the read configuration into your draft. Choose a group and pedal, then edit PC/CC messages, channels, Bank A/B and behavior. Generic destinations and named presets belong to the local project.
-4. Save/export the project as versioned JSON. Review device changes separately, then apply; the adapter rereads the device and requires an exact byte match before reporting a verified write.
+1. Open the site in a desktop browser supporting Web MIDI with SysEx. The connection wizard helps you choose the controller ports, read the full configuration and preserve its original backup. You can also edit without connecting.
+2. Choose the receiving equipment and its MIDI channel. The first supplied profile is the Line 6 M5; **Advanced MIDI** works with other destinations. Profiles describe musical actions and their parameters, rather than separate brand-specific interfaces.
+3. Select A, B, C or D, choose an action and apply it to the draft. Add a hold action if needed. For example, tap A selects M5 preset 1 and hold A selects preset 2. Existing raw sequences remain available under Advanced MIDI.
+4. Review and save to Chocolate. The adapter compares the complete baseline, writes, and rereads every byte before reporting a verified configuration. Then test the switches on the receiving equipment separately.
+5. Use **Project & files** to save in this browser or download/open a versioned JSON project. Equipment intentions and raw MIDI are preserved together.
+
+The fixed Program Change mode's 000–127 display positions are not 128 freely programmable tap/hold slots. Custom assignments use the independently mapped eight-group Advanced layout; changing modes is explicit in the write review. E/F markings reflect A+B and C+D, with navigation dependent on the controller mode.
+
+New equipment profiles are data in `packages/midi/src/equipment-profiles.json`; see the [profile authoring contract](research/templates/README.md) and [MIDI package](packages/midi/README.md). The catalog supplies Portuguese/English labels, parameter ranges and deterministic MIDI mappings. Unknown pinned profile versions preserve raw commands without guessing their meaning.
 
 JSON imports replace the draft only after review and automatic local backup. FCP imports are complete device backups, clearly marked unverified until restored and reread; they are not editable project JSON. Browser data stays on this origin/device: export files to transfer or retain an independent copy. There is no offline-install/PWA claim in this beta.
 

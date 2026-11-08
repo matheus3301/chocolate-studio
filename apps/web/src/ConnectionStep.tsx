@@ -88,7 +88,7 @@ export function ConnectionStep({ service, state, onRead, onOffline, onNotice, on
       })}>{ct('connectRead')}</button>
     </>}
     {connected && <>
-      <p role="status">{ct(busy ? 'checking' : read ? 'readComplete' : 'connectedNotRead')}</p>
+      <p role="status">{ct(busy ? 'checking' : read ? state.verified ? 'writeVerified' : 'readComplete' : 'connectedNotRead')}</p>
       <ControllerModeNotice {...(read?.controller ? { controller: read.controller } : {})} />
       <div className="button-row"><button className="secondary" type="button" disabled={busy} onClick={() => void perform(() => service.read())}>{ct('readAgain')}</button>
         <button className="text-button" type="button" onClick={() => void leave(false)}>{ct('disconnect')}</button></div>

@@ -21,6 +21,8 @@ export interface GuidedEditorProps {
   disabled?: boolean;
   profiles?: readonly EquipmentProfile[];
   onPendingChange?: (pending: boolean) => void;
+  sequence?: Sequence;
+  onSequence?: (sequence: Sequence) => void;
   modeMetadata?: {
     source?: 'read' | 'draft';
     display?: 'pc' | 'unknown';
@@ -123,11 +125,13 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
   </form>;
 }
 
-export function GuidedEditor({ configuration, onChange, groupId, onGroup, switchId, onSwitch, confirm, destinationId, disabled = false, profiles = equipmentProfiles, modeMetadata, onPendingChange }: GuidedEditorProps) {
+export function GuidedEditor({ configuration, onChange, groupId, onGroup, switchId, onSwitch, confirm, destinationId, disabled = false, profiles = equipmentProfiles, modeMetadata, onPendingChange, sequence, onSequence }: GuidedEditorProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'pt-BR';
   const controllerId = useId();
-  const [rawSequence, setRawSequence] = useState<Sequence>('primary');
+  const [localSequence, setLocalSequence] = useState<Sequence>('primary');
+  const rawSequence = sequence ?? localSequence;
+  const setRawSequence = (next: Sequence) => { setLocalSequence(next); onSequence?.(next); };
   const [holdSelection, setHoldSelection] = useState('');
   const [formRevision, setFormRevision] = useState(0);
   const [pending, setPending] = useState(false);

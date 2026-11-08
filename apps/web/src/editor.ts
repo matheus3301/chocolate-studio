@@ -30,6 +30,13 @@ export function editGroup(configuration: StudioConfiguration, groupId: string, c
 export function setMessages(configuration: StudioConfiguration, groupId: string, switchId: SwitchId, sequence: Sequence, messages: MidiMessage[]): StudioConfiguration {
   return editGroup(configuration, groupId, (group) => {
     const pedal = group.switches[switchId];
+    // Raw edits deliberately remove only the label binding for the edited sequence.
+    // Keeping a prior musical label would misrepresent the newly entered bytes.
+    if (pedal.actionBindings) {
+      if (sequence === 'secondary') delete pedal.actionBindings.secondary;
+      else if (sequence === 'primary' || pedal.actions[0]?.gesture === sequence) delete pedal.actionBindings.primary;
+      if (!pedal.actionBindings.primary && !pedal.actionBindings.secondary) delete pedal.actionBindings;
+    }
     if (sequence === 'secondary') {
       pedal.secondaryMessages = structuredClone(messages);
       return;

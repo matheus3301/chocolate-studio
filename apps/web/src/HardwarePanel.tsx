@@ -166,7 +166,7 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
     <details><summary>{ct('historyDetails')}</summary><ol>{state.history.map(event => <li key={event.id}>{new Date(event.time).toLocaleTimeString(i18n.language)} · {t(event.summary, { defaultValue: event.summary })}</li>)}</ol></details>
 
     {preview && <Dialog title={t('writeReview')} onClose={() => { if (!busy) { previewGeneration.current++; setApproval(null); } }}>
-      {state.observed && <MusicalReview before={state.observed.configuration} after={preview.configuration} />}
+      {state.observed && <MusicalReview device before={state.observed.configuration} after={preview.configuration} />}
       <p className="helper">{ct('physicalCaveat')}</p>
       {state.observed?.controller?.modeKind !== 'advanced' && <p className="warning-text">{ct('advancedActivation')}</p>}
       {[...preview.warnings, ...preview.unsupported].map((warning, index) => <p className="warning-text" key={`${warning}-${index}`}>{t(warning, { defaultValue: warning })}</p>)}
