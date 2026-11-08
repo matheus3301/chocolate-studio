@@ -6,6 +6,8 @@ export interface PortSelection { inputId: string; outputId: string }
 export interface DeviceIdentity { name: string; manufacturer: string | null; model: string | null; firmware: string | null }
 export interface RawBackup {
   id: string;
+  /** Files have no device identity signature; the real adapter validates their complete layout and explicit target. */
+  source?: 'device' | 'file';
   /** Complete owned copy, never a normalized/re-encoded reconstruction. */
   bytes: Uint8Array;
   sha256: string;

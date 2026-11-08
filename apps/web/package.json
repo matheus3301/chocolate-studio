@@ -1,0 +1,30 @@
+{
+  "name": "@chocolate-studio/web",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "dexie": "4.4.7",
+    "i18next": "26.7.1",
+    "@chocolate-studio/midi": "workspace:*",
+    "@chocolate-studio/chocolate": "workspace:*",
+    "@chocolate-studio/chocolate-layout": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-i18next": "17.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "fake-indexeddb": "6.2.7",
+    "vite": "8.3.6"
+  }
+}
