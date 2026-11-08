@@ -1,0 +1,22 @@
+{
+  "provenance": "Observed independent CoreMIDI experiment, 2026-11-08 UTC; see experiments/001-hardware-roundtrip.md",
+  "deviceIdentity": "FootCtrlPlus_016",
+  "steps": [
+    {
+      "operation": "set global channel to 2",
+      "requestHex": "f000320949000000020200000010000000016e03f7",
+      "requestDecodedHex": "005922090000040200000001000001f7",
+      "responseHex": "f000320108000000007f01f7",
+      "responseDecodedHex": "00590001000000ff",
+      "verifiedChangedOffsets": [2]
+    },
+    {
+      "operation": "restore global channel to 1",
+      "requestHex": "f000320949000000020200000010000000007003f7",
+      "requestDecodedHex": "005922090000040200000001000000f8",
+      "responseHex": "f000320108000000007f01f7",
+      "responseDecodedHex": "00590001000000ff",
+      "verifiedFullBaselineMatch": true
+    }
+  ]
+}
