@@ -9,11 +9,13 @@ export type {
 } from './messages.js';
 export {
   CONFIGURATION_LIMITS, SWITCH_IDS, gestureSchema, destinationSchema, presetSchema,
+  switchBehaviorSchema,
   gestureActionSchema, switchConfigurationSchema, groupSchema, studioConfigurationSchema,
   presetToProgramChange, createDefaultConfiguration,
 } from './configuration.js';
 export type {
   SwitchId, Gesture, Destination, Preset, GestureAction, SwitchConfiguration,
+  SwitchBehavior,
   Group, StudioConfiguration, DefaultConfigurationOptions,
 } from './configuration.js';
 export { importConfiguration, exportConfiguration } from './json.js';
