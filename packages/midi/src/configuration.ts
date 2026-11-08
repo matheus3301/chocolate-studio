@@ -19,6 +19,8 @@ export const SWITCH_IDS = ['A', 'B', 'C', 'D'] as const;
 export type SwitchId = typeof SWITCH_IDS[number];
 export const gestureSchema = z.enum(['press', 'release', 'longPress', 'doublePress']);
 export type Gesture = z.infer<typeof gestureSchema>;
+export const switchBehaviorSchema = z.enum(['single', 'alternate', 'momentary', 'long', 'shortLong']);
+export type SwitchBehavior = z.infer<typeof switchBehaviorSchema>;
 const nameSchema = z.string().min(1).max(CONFIGURATION_LIMITS.nameLength);
 
 export const destinationSchema = z.strictObject({
@@ -48,6 +50,8 @@ export type GestureAction = z.infer<typeof gestureActionSchema>;
 export const switchConfigurationSchema = z.strictObject({
   label: z.string().max(CONFIGURATION_LIMITS.labelLength),
   actions: z.array(gestureActionSchema).max(CONFIGURATION_LIMITS.actionsPerSwitch),
+  behavior: switchBehaviorSchema.optional(),
+  secondaryMessages: z.array(midiMessageSchema).max(CONFIGURATION_LIMITS.messagesPerAction).optional(),
 }).superRefine((value, ctx) => {
   const seen = new Set<Gesture>();
   value.actions.forEach((action, index) => {
@@ -104,6 +108,11 @@ const configurationShapeSchema = z.strictObject({
         action.messages.forEach((message, k) => {
           reference(message.destinationId, ['groups', i, 'switches', key, 'actions', j, 'messages', k, 'destinationId']);
         });
+      });
+      const secondary = group.switches[key].secondaryMessages ?? [];
+      totalMessages += secondary.length;
+      secondary.forEach((message, k) => {
+        reference(message.destinationId, ['groups', i, 'switches', key, 'secondaryMessages', k, 'destinationId']);
       });
     }
   });
