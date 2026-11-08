@@ -72,6 +72,35 @@ All twenty passed. Offsets and allowed domains come from the own static mapping;
 the experiments do not assign new meanings to unidentified flags or selectors.
 Private original images and transport traces remain outside the public repository.
 
+## Compiled library verification of the new editors
+
+The actual TypeScript layout package and `ProtocolSession` were then compiled
+from the implementation and exercised through the native MIDI transport. Before
+any write, each generated image was compared with a separately constructed
+expected image using the independently mapped byte coordinates.
+
+| Case | Changes | Result |
+| --- | ---: | --- |
+| Custom keyboard: first A and last group/D, two shortcut combinations, mode 10 | 6 bytes | Exact full write/readback and restoration |
+| Mixed: keyboard on A, navigation on B, MIDI tap/hold records at last group/D, mode 11 | 14 bytes | Exact full write/readback and restoration |
+| Expression interface: first and last endpoint records, expression interface selection | 9 bytes | Exact full write/readback and restoration |
+
+The writer used the observed CubeSuite send ranges, preserving the unchanged
+bytes within those ranges, and activated the mode after assignment data. Each
+case started from and ended at the complete original image. The private harness
+is `verify-modes-library.mjs`; its result is
+`own-modes-typescript-001-summary.json`. No footswitch or expression pedal was
+physically actuated during these storage experiments.
+
+### Correction to the older Interface interpretation
+
+The Interface bank has five-byte **endpoint records**, not the typed PC/CC
+records used by Advanced and Mixed. Own inspection of `editInterface` at
+`0x10008c8a0` identifies enabled, channel index, Data, Loosen Value and Step On
+Value. The three data/value fields range from 0 to 127. A dedicated patch and
+decoder now model these fields; the obsolete typed-message interface path is
+rejected. The first/last endpoint case above verifies this corrected byte layout.
+
 ## Limits of the evidence
 
 These results establish byte storage, acknowledgement, exact readback and
