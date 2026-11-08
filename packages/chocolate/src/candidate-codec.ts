@@ -4,8 +4,10 @@ import { ChocolateError, integerInRange } from './errors.js';
 import { BinarySnapshot } from './snapshot.js';
 
 export const candidateEvidence = Object.freeze({
-  status: 'static-derived-with-observed-vectors' as const,
-  libraryHardwareQualified: false as const,
+  status: 'native-transport-hardware-observed' as const,
+  libraryHardwareQualified: true as const,
+  libraryQualificationScope: 'FootCtrlPlus_016:full-read-channel-write-readback-restore' as const,
+  webMidiHardwareQualified: false as const,
   coordinatorIndependentHardwareValidated: true as const,
   readChunkSize: 1024,
   binarySha256: '1730799b103cb3c029ca9d1999e7355e20342f5a99d338cca963cf127140c88f',
