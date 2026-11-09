@@ -3,13 +3,14 @@ import { CONTROLLER_MODES, effectiveControllerMode, getControllerMode } from '@c
 import type { StudioConfiguration } from '@chocolate-studio/midi';
 import { useModeTranslation } from './mode-i18n.js';
 
-export function ModeStep({ configuration, currentMode, onChange, onComplete, onBack, disabled = false }: {
+export function ModeStep({ configuration, currentMode, onChange, onComplete, onBack, disabled = false, embedded = false }: {
   configuration: StudioConfiguration;
   currentMode?: number;
   onChange: (configuration: StudioConfiguration) => boolean | void;
   onComplete: (mode: number) => void;
-  onBack: () => void;
+  onBack?: () => void;
   disabled?: boolean;
+  embedded?: boolean;
 }) {
   const { mt, locale } = useModeTranslation();
   const id = useId();
@@ -23,8 +24,8 @@ export function ModeStep({ configuration, currentMode, onChange, onComplete, onB
     { label: mt('keyboard'), modes: CONTROLLER_MODES.filter(entry => entry.raw >= 5 && entry.raw <= 11) },
     { label: mt('other'), modes: CONTROLLER_MODES.filter(entry => entry.raw === 12) },
   ];
-  return <section className="setup-card guided-setup" aria-labelledby={`${id}-title`}>
-    <header><h1 id={`${id}-title`}>{mt('title')}</h1><p>{mt('intro')}</p></header>
+  return <section className={embedded ? 'mode-selection mode-selection-embedded' : 'setup-card guided-setup'} aria-label={embedded ? mt('mode') : undefined} aria-labelledby={embedded ? undefined : `${id}-title`}>
+    {!embedded && <header><h1 id={`${id}-title`}>{mt('title')}</h1><p>{mt('intro')}</p></header>}
     <p className="mode-current">{mt(currentMode === undefined ? 'draft' : 'current')}: <strong>{current?.label[locale] ?? mt('unknown')}</strong></p>
     <form onSubmit={event => {
       event.preventDefault();
@@ -37,10 +38,9 @@ export function ModeStep({ configuration, currentMode, onChange, onComplete, onB
           {categories.map(category => <optgroup label={category.label} key={category.label}>{category.modes.map(entry => <option value={entry.raw} key={entry.id}>{entry.label[locale]}</option>)}</optgroup>)}
         </select></label>
         {mode && <p className="mode-description">{mode.description[locale]}</p>}
-        <p className="helper">{mt('recommended')}</p>
         <p className="helper" role="status">{mt(selected === original ? 'kept' : 'changed')}</p>
         {error && <p className="warning-text" role="alert">{mt('error')}</p>}
-        <div className="guided-step-actions"><button className="secondary" type="button" onClick={onBack}>{mt('back')}</button><button className="primary" type="submit" disabled={!mode}>{mt('continue')}</button></div>
+        <div className="guided-step-actions">{onBack && <button className="secondary" type="button" onClick={onBack}>{mt('back')}</button>}<button className="primary" type="submit" disabled={!mode}>{mt('continue')}</button></div>
       </fieldset>
     </form>
   </section>;

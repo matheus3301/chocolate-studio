@@ -37,12 +37,13 @@ function AssignmentForm({ assignment, slot, onApply, onClear, onPendingChange }:
   </form>;
 }
 
-export function InterfaceEditor({ configuration, onChange, confirm, onPendingChange, disabled = false }: {
+export function InterfaceEditor({ configuration, onChange, confirm, onPendingChange, disabled = false, embedded = false }: {
   configuration: StudioConfiguration;
   onChange: (configuration: StudioConfiguration) => boolean | void;
   confirm: GuidedEditorProps['confirm'];
   onPendingChange: (pending: boolean) => void;
   disabled?: boolean;
+  embedded?: boolean;
 }) {
   const { mt, locale } = useModeTranslation();
   const [slot, setSlot] = useState(configuration.controller?.interfaceAssignments?.[0]?.slot ?? 0);
@@ -53,7 +54,7 @@ export function InterfaceEditor({ configuration, onChange, confirm, onPendingCha
   useEffect(() => () => onPendingChange(false), [onPendingChange]);
   const settings = configuration.controller ?? {};
   const assignment = settings.interfaceAssignments?.find(entry => entry.slot === slot);
-  return <details className="mode-global-settings interface-editor"><summary>{mt('interface')}</summary><fieldset className="guided-fields" disabled={disabled}>
+  const body = <fieldset className="guided-fields" disabled={disabled}>
     <fieldset className="guided-fields" disabled={pending}><div className="mode-settings">
       <label className="field"><span>{mt('interfaceType')}</span><select value={settings.interfaceType ?? ''} onChange={event => setError(onChange({ ...configuration, controller: { ...settings, interfaceType: Number(event.target.value) } }) === false)}>
         {settings.interfaceType === undefined && <option value="" disabled>{mt('preserve')}</option>}<option value={0}>{mt('expression')}</option><option value={1}>{mt('trsMidi')}</option>
@@ -71,5 +72,6 @@ export function InterfaceEditor({ configuration, onChange, confirm, onPendingCha
       onApply={next => onChange({ ...configuration, controller: { ...settings, interfaceAssignments: [...(settings.interfaceAssignments ?? []).filter(entry => entry.slot !== slot), next], clearedInterfaceSlots: settings.clearedInterfaceSlots?.filter(value => value !== slot) } })}
       onClear={() => onChange({ ...configuration, controller: { ...settings, interfaceAssignments: settings.interfaceAssignments?.filter(entry => entry.slot !== slot), clearedInterfaceSlots: [...new Set([...(settings.clearedInterfaceSlots ?? []), slot])] } })} />
     {error && <p className="warning-text" role="alert">{mt('error')}</p>}
-  </fieldset></details>;
+  </fieldset>;
+  return embedded ? <section className="interface-editor interface-editor-embedded">{body}</section> : <details className="mode-global-settings interface-editor"><summary>{mt('interface')}</summary>{body}</details>;
 }
