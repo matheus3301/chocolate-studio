@@ -71,10 +71,11 @@ function RetainedNameField({ label, value, max, allowEmpty = false, owner, draft
   onChange: (value: string) => boolean | void;
 }) {
   const { wt } = useWorkbenchTranslation();
+  const id = useId();
   const [text, setText] = useState(() => drafts.get(owner) ?? value);
   const [error, setError] = useState(drafts.has(owner));
   useEffect(() => { if (!drafts.has(owner)) setText(value); }, [value, owner, drafts]);
-  return <label className="field workbench-field"><span>{label}</span><input style={{ minHeight: 44 }} value={text} maxLength={max} required={!allowEmpty} aria-invalid={error} onChange={event => {
+  return <label className="field workbench-field"><span id={`${id}-label`}>{label}</span><input style={{ minHeight: 44 }} value={text} maxLength={max} required={!allowEmpty} aria-invalid={error} aria-labelledby={`${id}-label`} aria-describedby={error ? `${id}-error` : undefined} onChange={event => {
     const next = event.currentTarget.value;
     setText(next);
     let accepted = false;
@@ -82,7 +83,7 @@ function RetainedNameField({ label, value, max, allowEmpty = false, owner, draft
     if (accepted) drafts.delete(owner); else drafts.set(owner, next);
     setError(!accepted);
     reportPending(owner, !accepted);
-  }} />{error && <span className="field-error warning-text">{wt('rejected')}</span>}</label>;
+  }} />{error && <span className="field-error warning-text" id={`${id}-error`}>{wt('rejected')}</span>}</label>;
 }
 
 function ActionEditor({ configuration, onChange, groupId, switchId, confirm, destinationId, sequence, title, profiles, drafts, owner, reportPending, onManageDestinations, onManagePresets }: ActionProps) {
@@ -212,8 +213,6 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
       }}><option value="">{t('guided.chooseEquipment')}</option>{configuration.destinations.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
       <div className="workbench-context-tools button-row">
         <button className="text-button" type="button" disabled={configuration.destinations.length >= CONFIGURATION_LIMITS.destinations} onClick={() => replaceForm(() => updateEquipment({}))}>{wt('addEquipment')}</button>
-        {onManageDestinations && <button className="text-button" type="button" onClick={onManageDestinations}>{wt('manageEquipment')}</button>}
-        {onManagePresets && <button className="text-button" type="button" onClick={onManagePresets}>{wt('managePresets')}</button>}
       </div>
       {destination && <p className="workbench-channel">{wt('channel')} {destination.channel}</p>}
     </div>
@@ -276,6 +275,10 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
     </div>}
     {draft.error && <p role="alert" className="warning-text">{draft.error === 'reviewExpired' ? t('guided.reviewExpired') : wt('rejected')}</p>}
     {draft.pending && <button className="text-button" type="button" onClick={discard}>{wt('discard')}</button>}
+    {(onManageDestinations || onManagePresets) && <div className="workbench-context-tools button-row">
+      {onManageDestinations && <button className="text-button" type="button" onClick={onManageDestinations}>{wt('manageEquipment')}</button>}
+      {onManagePresets && <button className="text-button" type="button" onClick={onManagePresets}>{wt('managePresets')}</button>}
+    </div>}
   </div>;
 }
 
@@ -283,6 +286,7 @@ function ActionEditor({ configuration, onChange, groupId, switchId, confirm, des
  * workbench-action, workbench-destination, workbench-context-tools, workbench-field,
  * field-error, workbench-add-equipment, workbench-action-kind, workbench-manual.
  * Forms are cached by group/switch/sequence, not keyed by configuration or MIDI bytes.
+ * Secondary controls follow the action core; invalid retained names reveal their disclosure.
  */
 export function GuidedEditor({ configuration, onChange, groupId, onGroup, switchId, onSwitch, confirm, destinationId, disabled = false, profiles = equipmentProfiles, onPendingChange, sequence, onSequence, switchOptions, children, externalPending = false, midiEditable = true, assignmentSummaries, onManageDestinations, onManagePresets }: GuidedEditorProps) {
   const { t, i18n } = useTranslation();
@@ -296,6 +300,8 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
   const pendingOwners = useRef(new Set<string>());
   const drafts = useRef(new Map<string, ActionDraft>());
   const textDrafts = useRef(new Map<string, string>());
+  const switchSettingsRef = useRef<HTMLDetailsElement>(null);
+  const groupSettingsRef = useRef<HTMLDetailsElement>(null);
   const pendingCallback = useRef(onPendingChange);
   pendingCallback.current = onPendingChange;
   const reportPending = useCallback((owner: string, value: boolean) => {
@@ -308,6 +314,11 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
   useEffect(() => () => { pendingCallback.current?.(false); }, []);
   const groups = configuration.groups;
   const group = groups.find(entry => entry.id === groupId) ?? groups[0];
+  useEffect(() => {
+    if (!group) return;
+    if (pendingOwners.current.has(JSON.stringify([group.id, switchId, 'primary', 'label'])) && switchSettingsRef.current) switchSettingsRef.current.open = true;
+    if (pendingOwners.current.has(JSON.stringify([group.id, switchId, 'primary', 'groupName'])) && groupSettingsRef.current) groupSettingsRef.current.open = true;
+  }, [pending, group?.id, switchId]);
   if (!group) return <p role="status">{t('guided.noReadGroups')}</p>;
   const pedal = group.switches[switchId];
   const index = groups.indexOf(group);
@@ -344,7 +355,12 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
       const [pendingGroup, pendingSwitch, pendingSequence] = JSON.parse(owner) as [string, SwitchId, Sequence];
       const entry = groups.find(value => value.id === pendingGroup);
       if (!entry) return null;
-      return <button type="button" className="text-button" key={owner} onClick={() => { onGroup(pendingGroup); onSwitch(pendingSwitch); setRawSequence(pendingSequence); }}>{entry.name} · {pendingSwitch} · {t(pendingSequence === 'primary' ? gestureKeys(entry.switches[pendingSwitch].behavior)[0] : pendingSequence === 'secondary' ? gestureKeys(entry.switches[pendingSwitch].behavior)[1] : pendingSequence)} · {wt('unfinished')}</button>;
+      return <button type="button" className="text-button" key={owner} onClick={() => {
+        onGroup(pendingGroup); onSwitch(pendingSwitch); setRawSequence(pendingSequence);
+        const field = (JSON.parse(owner) as string[])[3];
+        if (field === 'label' && switchSettingsRef.current) switchSettingsRef.current.open = true;
+        if (field === 'groupName' && groupSettingsRef.current) groupSettingsRef.current.open = true;
+      }}>{entry.name} · {pendingSwitch} · {t(pendingSequence === 'primary' ? gestureKeys(entry.switches[pendingSwitch].behavior)[0] : pendingSequence === 'secondary' ? gestureKeys(entry.switches[pendingSwitch].behavior)[1] : pendingSequence)} · {wt('unfinished')}</button>;
     })}</div></div>}
     <section className="guided-controller" aria-label={t('board')}>
       <div className="guided-navigation"><div><p className="eyebrow">{t('guided.groupBeingEdited')}</p><strong>{group.name}</strong></div>
@@ -366,13 +382,19 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
           {assignmentSummaries?.[id] ? <dd>{assignmentSummaries[id]}</dd> : <><dd><span className="assignment-gesture">{t(first)}: </span>{summary(id)}</dd>{(entry.behavior !== 'single' && entry.behavior !== undefined || !!entry.secondaryMessages?.length) && <dd><span className="assignment-gesture">{t(second)}: </span>{summary(id, 'secondary')}</dd>}</>}
         </div>;
       })}</dl>
+      <details className="group-settings" ref={groupSettingsRef}><summary>{wt('settings')}</summary>
+        <RetainedNameField key={`${group.id}:${switchId}`} label={t('groupName')} max={CONFIGURATION_LIMITS.nameLength} value={group.name} owner={JSON.stringify([group.id, switchId, 'primary', 'groupName'])} drafts={textDrafts.current} reportPending={reportPending} onChange={name => onChange(editGroup(configuration, group.id, next => { next.name = name; }))} />
+        <div className="button-row"><button type="button" className="text-button" disabled={groups.length >= groupLimit || pending.length > 0} onClick={() => addGroup(false)}>{t('addGroup')}</button>
+          <button type="button" className="text-button" disabled={groups.length >= groupLimit || pending.length > 0} onClick={() => addGroup(true)}>{t('duplicateGroup')}</button>
+          <button type="button" className="text-button danger" disabled={groups.length <= 1 || pending.length > 0} onClick={() => confirm(t('confirmRemoveGroup'), t('removeGroup'), () => {
+            if (onChange({ ...configuration, groups: groups.filter(entry => entry.id !== group.id) }) !== false) { onGroup(groups.find(entry => entry.id !== group.id)!.id); setRawSequence('primary'); }
+          })}>{t('removeGroup')}</button></div>
+      </details>
     </section>
     <section className="guided-inspector guided-panel workbench-inspector" aria-labelledby={`${controllerId}-editor`}>
       <header className="section-heading"><h2 id={`${controllerId}-editor`}>{t('editingSwitch', { switch: switchId })}</h2></header>
-      <RetainedNameField key={`${selection}:label`} label={t('label')} max={64} value={pedal.label} allowEmpty owner={JSON.stringify([group.id, switchId, 'primary', 'label'])} drafts={textDrafts.current} reportPending={reportPending} onChange={label => onChange(editGroup(configuration, group.id, next => { next.switches[switchId].label = label; }))} />
       {switchOptions}
       {midiEditable ? <>
-        <label className="field"><span>{t('behavior')}</span><select value={pedal.behavior ?? 'single'} onChange={event => onChange(editGroup(configuration, group.id, next => { next.switches[switchId].behavior = event.target.value as SwitchBehavior; }))}>{(['single', 'alternate', 'momentary', 'long', 'shortLong'] as const).map(behavior => <option value={behavior} key={behavior}>{t(behavior)}</option>)}</select></label>
         <div className="gesture-choices" role="group" aria-label={t('sequence')}>
           <button type="button" className="gesture-choice" aria-pressed={rawSequence === 'primary'} onClick={() => setRawSequence('primary')}><strong>{t(primaryKey)}</strong></button>
           {showSecondary ? <button type="button" className="gesture-choice" aria-pressed={rawSequence === 'secondary'} onClick={() => setRawSequence('secondary')}><strong>{t(secondaryKey)}</strong></button> : pedal.behavior === 'single' || pedal.behavior === undefined ? <button type="button" className="text-button" onClick={() => { if (onChange(editGroup(configuration, group.id, next => { next.switches[switchId].behavior = 'shortLong'; })) !== false) setRawSequence('secondary'); }}>{t('guided.addHold')}</button> : null}
@@ -380,13 +402,9 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
         </div>
         <ActionEditor key={`${selection}:${rawSequence}`} configuration={configuration} onChange={onChange} groupId={group.id} switchId={switchId} confirm={confirm} sequence={rawSequence} title={title} profiles={profiles} drafts={drafts.current} owner={JSON.stringify([group.id, switchId, rawSequence])} reportPending={reportPending} {...(destinationId ? { destinationId } : {})} {...(onManageDestinations ? { onManageDestinations } : {})} {...(onManagePresets ? { onManagePresets } : {})} />
       </> : children}
-      <details className="group-settings"><summary>{wt('settings')}</summary>
-        <RetainedNameField key={`${group.id}:${switchId}`} label={t('groupName')} max={CONFIGURATION_LIMITS.nameLength} value={group.name} owner={JSON.stringify([group.id, switchId, 'primary', 'groupName'])} drafts={textDrafts.current} reportPending={reportPending} onChange={name => onChange(editGroup(configuration, group.id, next => { next.name = name; }))} />
-        <div className="button-row"><button type="button" className="text-button" disabled={groups.length >= groupLimit || pending.length > 0} onClick={() => addGroup(false)}>{t('addGroup')}</button>
-          <button type="button" className="text-button" disabled={groups.length >= groupLimit || pending.length > 0} onClick={() => addGroup(true)}>{t('duplicateGroup')}</button>
-          <button type="button" className="text-button danger" disabled={groups.length <= 1 || pending.length > 0} onClick={() => confirm(t('confirmRemoveGroup'), t('removeGroup'), () => {
-            if (onChange({ ...configuration, groups: groups.filter(entry => entry.id !== group.id) }) !== false) { onGroup(groups.find(entry => entry.id !== group.id)!.id); setRawSequence('primary'); }
-          })}>{t('removeGroup')}</button></div>
+      <details className="workbench-switch-settings" ref={switchSettingsRef}><summary>{wt('switchSettings')}</summary>
+        <RetainedNameField key={`${selection}:label`} label={t('label')} max={64} value={pedal.label} allowEmpty owner={JSON.stringify([group.id, switchId, 'primary', 'label'])} drafts={textDrafts.current} reportPending={reportPending} onChange={label => onChange(editGroup(configuration, group.id, next => { next.switches[switchId].label = label; }))} />
+        {midiEditable && <label className="field"><span>{t('behavior')}</span><select value={pedal.behavior ?? 'single'} onChange={event => onChange(editGroup(configuration, group.id, next => { next.switches[switchId].behavior = event.target.value as SwitchBehavior; }))}>{(['single', 'alternate', 'momentary', 'long', 'shortLong'] as const).map(behavior => <option value={behavior} key={behavior}>{t(behavior)}</option>)}</select></label>}
       </details>
     </section>
   </fieldset>;

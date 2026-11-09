@@ -21,6 +21,7 @@ const en = {
   equipmentHint: 'Adding or selecting equipment does not replace the stored action. Choose an action explicitly.',
   channelHint: 'This channel belongs to the destination. Add another destination to use a different channel without changing existing actions.',
   settings: 'Group settings', nameRequired: 'Enter an equipment name.',
+  switchSettings: 'Switch name and behavior',
 };
 const pt: Record<keyof typeof en, string> = {
   equipmentActions: 'Ações do equipamento', manualMidi: 'MIDI manual', addEquipment: 'Adicionar equipamento',
@@ -42,6 +43,7 @@ const pt: Record<keyof typeof en, string> = {
   equipmentHint: 'Adicionar ou selecionar equipamento não substitui a ação armazenada. Escolha uma ação explicitamente.',
   channelHint: 'Este canal pertence ao destino. Adicione outro destino para usar um canal diferente sem alterar ações existentes.',
   settings: 'Opções do grupo', nameRequired: 'Informe um nome para o equipamento.',
+  switchSettings: 'Nome e comportamento do botão',
 };
 
 export function useWorkbenchTranslation() {

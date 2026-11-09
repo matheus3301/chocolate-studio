@@ -212,6 +212,35 @@ describe('direct equipment actions', () => {
     act(() => rendered.confirm.mock.calls[1]![2]());
     expect(rendered.current().groups[0]!.switches.A.actions[0]!.messages).toEqual([{ type: 'pc', channel: 3, program: 1, destinationId: 'stage-unit' }]);
   });
+
+  it('keeps rejected labels visible and recoverable inside optional switch settings across navigation and language changes', async () => {
+    const rendered = showEditor(boundFixture(), { onChange: next => next.groups[0]!.switches.A.label !== 'Rejected' });
+    const user = userEvent.setup();
+    const summary = screen.getByText('Switch name and behavior', { selector: 'summary' });
+    const details = summary.parentElement as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    await user.click(summary);
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('label') }), { target: { value: 'Rejected' } });
+    expect(rendered.current().groups[0]!.switches.A.label).toBe('A');
+    expect(rendered.pending.mock.calls.at(-1)).toEqual([true]);
+    await user.click(summary);
+    expect(details.open).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /Group 1.*A.*Incomplete fields/ }));
+    expect(details.open).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.editChoice', { choice: 'B' }) }));
+    await act(async () => { await i18n.changeLanguage('pt-BR'); });
+    await user.click(screen.getByText('Nome e comportamento do botão', { selector: 'summary' }));
+    fireEvent.click(screen.getByRole('button', { name: /Group 1.*A.*Campos incompletos/ }));
+    const label = screen.getByRole('textbox', { name: i18n.t('label') }) as HTMLInputElement;
+    expect(details.open).toBe(true);
+    expect(label.value).toBe('Rejected');
+    fireEvent.change(label, { target: { value: 'Accepted' } });
+    expect(rendered.current().groups[0]!.switches.A.label).toBe('Accepted');
+    expect(rendered.pending.mock.calls.at(-1)).toEqual([false]);
+    fireEvent.change(screen.getByRole('combobox', { name: i18n.t('behavior') }), { target: { value: 'alternate' } });
+    expect(rendered.current().groups[0]!.switches.A.behavior).toBe('alternate');
+    expect(rendered.current().groups[0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
+  });
 });
 
 describe('equipment instances and stored navigation', () => {
