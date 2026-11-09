@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIGURATION_LIMITS, SWITCH_IDS, exportConfiguration, studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
-import { connectionEn, connectionPt } from '../src/connection-i18n.js';
+import { workbenchConnectionEn, workbenchConnectionPt } from '../src/workbench-connection-i18n.js';
 import { App } from '../src/App.js';
 import { initialConfiguration, sameConfiguration, setMessages } from '../src/editor.js';
 import { en, i18n, initializeLanguage, pt } from '../src/i18n.js';
@@ -15,43 +15,47 @@ import { useStudio } from '../src/useStudio.js';
 function pendingFile(text: Promise<string>): File {
   return { size: 100, text: () => text } as File;
 }
-async function ready(configuration = initialConfiguration('en'), advanced = true) {
+async function ready(configuration = initialConfiguration('en')) {
   await database.initialize(configuration);
   const rendered = render(<App />);
-  fireEvent.click(await screen.findByRole('button', { name: i18n.t('offline', { ns: 'connection' }) }));
-  if (advanced) setAdvanced(true);
+  fireEvent.click(await screen.findByRole('button', { name: i18n.t('offline', { ns: 'workbenchConnection' }) }));
   return rendered;
-}
-function setAdvanced(open: boolean) {
-  const summary = screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' });
-  if (summary.parentElement?.hasAttribute('open') !== open) fireEvent.click(summary);
 }
 function openFiles() {
   const summary = screen.getByText(i18n.t('file', { ns: 'workbench' }), { selector: 'summary' });
   if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary);
 }
 function openPresets() {
-  setAdvanced(false);
-  fireEvent.click(screen.getByRole('button', { name: /preset/i }));
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('managePresets', { ns: 'workbenchEditor' }) }));
 }
 function openDestinations() {
-  setAdvanced(false);
-  fireEvent.click(screen.getByRole('button', { name: /equipment|equipamento|destina/i }));
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('manageEquipment', { ns: 'workbenchEditor' }) }));
 }
 
 function fullConfiguration(): StudioConfiguration {
   const configuration = initialConfiguration('en');
   configuration.controller = { mode: 3 };
   const first = configuration.groups[0]!;
-  configuration.groups = Array.from({ length: 32 }, (_, index) => {
+  // Leave an eighth group available: duplication must hit the message budget, not the group limit.
+  configuration.groups = Array.from({ length: 7 }, (_, index) => {
     const group = structuredClone(first);
     group.id = `group-${index + 1}`;
     group.name = `Group ${index + 1}`;
     for (const id of SWITCH_IDS) {
-      group.switches[id].actions = [{ gesture: 'press', messages: Array.from({ length: 32 }, (_, program) => ({ type: 'pc', channel: 1, program })) }];
+      group.switches[id].behavior = 'shortLong';
+      group.switches[id].actions = (['press', 'release', 'longPress', 'doublePress'] as const).map(gesture => ({
+        gesture, messages: Array.from({ length: 32 }, (_, program) => ({ type: 'pc', channel: 1, program })),
+      }));
     }
     return group;
   });
+  let remaining = CONFIGURATION_LIMITS.totalMessages - 7 * 4 * 4 * 32;
+  for (const group of configuration.groups) for (const id of SWITCH_IDS) {
+    if (group === configuration.groups[0] && id === 'A') continue;
+    const length = Math.min(remaining, 32);
+    remaining -= length;
+    if (length) group.switches[id].secondaryMessages = Array.from({ length }, (_, program) => ({ type: 'pc', channel: 1, program }));
+  }
   configuration.presets = [{ id: 'preset-99', name: 'Solo', channel: 3, program: 99 }];
   return studioConfigurationSchema.parse(configuration);
 }
@@ -72,8 +76,7 @@ it('waits for initialization, then keeps valid fields editable during automatic 
   render(<App />);
   expect(screen.queryByLabelText(en.program)).toBeNull();
   await act(async () => { loading.resolve(); });
-  fireEvent.click(await screen.findByRole('button', { name: connectionEn.offline }));
-  setAdvanced(true);
+  fireEvent.click(await screen.findByRole('button', { name: workbenchConnectionEn.offline }));
   const saving = Promise.withResolvers<void>();
   const started = Promise.withResolvers<void>();
   const save = database.save.bind(database);
@@ -123,13 +126,14 @@ describe('import review generation', () => {
 });
 
 describe('aggregate message capacity', () => {
-  it.each(['add', 'duplicate', 'preset'] as const)('rejects %s growth at 4096 without making the draft unsaveable', async (operation) => {
-    await ready(fullConfiguration());
-    fireEvent.click(screen.getByRole('button', { name: en.secondary }));
+  it.each(['add', 'duplicate', 'preset'] as const)('rejects %s growth at 4096 without replacing the valid recovery snapshot', async (operation) => {
+    const configuration = fullConfiguration();
+    await ready(configuration);
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.onHold') }));
     if (operation === 'add') {
       fireEvent.click(screen.getByRole('button', { name: en.addPc }));
     } else if (operation === 'duplicate') {
-      fireEvent.click(screen.getByText(en.groupName, { selector: 'summary' }));
+      fireEvent.click(screen.getByText(i18n.t('settings', { ns: 'workbenchEditor' }), { selector: 'summary' }));
       fireEvent.click(screen.getByRole('button', { name: en.duplicateGroup }));
     } else {
       openPresets();
@@ -137,11 +141,11 @@ describe('aggregate message capacity', () => {
       fireEvent.click(within(library).getByRole('button', { name: en.usePreset }));
       fireEvent.click(within(screen.getByRole('dialog', { name: en.confirmPreset })).getByRole('button', { name: en.usePreset }));
       fireEvent.click(within(library).getByRole('button', { name: en.close }));
-      setAdvanced(true);
     }
-    expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
-    expect(screen.getByRole('button', { name: en.secondary }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('alert').some(alert => alert.textContent?.includes(en.limitReached))).toBe(true);
+    expect(screen.getByRole('button', { name: i18n.t('guided.onHold') }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(en.noMessages)).toBeTruthy();
+    expect((await database.drafts.get('current'))?.configuration).toEqual(configuration);
   });
 });
 
@@ -153,12 +157,22 @@ it('rejects JSON byte overflow and restores accepted numeric/name displays at th
   function setCount(count: number) {
     let remaining = count;
     for (const group of configuration.groups) for (const id of SWITCH_IDS) {
+      group.switches[id].actions = [];
+      delete group.switches[id].secondaryMessages;
+      for (const gesture of ['press', 'release', 'longPress', 'doublePress'] as const) {
+        const length = Math.min(remaining, 32);
+        remaining -= length;
+        if (length) group.switches[id].actions.push({
+          gesture,
+          messages: Array.from({ length }, () => ({ type: 'pc', channel: 16, program: 127, bank: { msb: 127, lsb: 127 }, destinationId })),
+        });
+      }
+    }
+    for (const group of configuration.groups) for (const id of SWITCH_IDS) {
+      if (group === configuration.groups[0] && id === 'A') continue;
       const length = Math.min(remaining, 32);
       remaining -= length;
-      group.switches[id].actions = length ? [{
-        gesture: 'press',
-        messages: Array.from({ length }, () => ({ type: 'pc', channel: 16, program: 127, bank: { msb: 127, lsb: 127 }, destinationId })),
-      }] : [];
+      if (length) group.switches[id].secondaryMessages = Array.from({ length }, () => ({ type: 'pc', channel: 16, program: 127, bank: { msb: 127, lsb: 127 }, destinationId }));
     }
   }
   const encoder = new TextEncoder();
@@ -184,14 +198,17 @@ it('rejects JSON byte overflow and restores accepted numeric/name displays at th
   expect(low).toBeLessThan(CONFIGURATION_LIMITS.totalMessages);
   expect(encoder.encode(exportConfiguration(configuration)).byteLength).toBe(maximum - 1);
   await ready(configuration);
-  fireEvent.click(screen.getByRole('button', { name: en.secondary }));
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.onHold') }));
   fireEvent.click(screen.getByRole('button', { name: en.addPc }));
-  expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
-  fireEvent.click(screen.getByRole('button', { name: en.primary }));
+  expect(screen.getAllByRole('alert').some(alert => alert.textContent?.includes(en.limitReached))).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('discard', { ns: 'workbenchEditor' }) }));
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.onTap') }));
   const program = screen.getAllByLabelText(en.program)[0] as HTMLInputElement;
   fireEvent.change(program, { target: { value: '127' } });
   fireEvent.blur(program);
   expect(program.value).toBe('0');
+  expect(screen.getAllByRole('alert').some(alert => alert.textContent?.includes(en.limitReached))).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('discard', { ns: 'workbenchEditor' }) }));
   openDestinations();
   const name = screen.getByLabelText(en.destinationName) as HTMLInputElement;
   fireEvent.change(name, { target: { value: 'é'.repeat(128) } });
@@ -207,10 +224,10 @@ it('returns to Bank A after removing the selected additional gesture and adds su
   const configuration = initialConfiguration('en');
   configuration.groups[0]!.switches.A.actions.push({ gesture: 'release', messages: [{ type: 'cc', channel: 2, controller: 69, value: 127 }] });
   await ready(configuration);
-  fireEvent.change(screen.getByLabelText(en.additionalGesture), { target: { value: 'release' } });
+  fireEvent.click(screen.getByRole('button', { name: en.release }));
   fireEvent.click(screen.getByRole('button', { name: en.remove }));
-  expect(screen.queryByLabelText(en.additionalGesture)).toBeNull();
-  expect(screen.getByRole('button', { name: en.primary }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.queryByRole('button', { name: en.release })).toBeNull();
+  expect(screen.getByRole('button', { name: i18n.t('guided.onTap') }).getAttribute('aria-pressed')).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: en.addCc }));
   await waitFor(async () => expect((await database.drafts.get('current'))?.configuration.groups[0]?.switches.A.actions.map(action => action.gesture)).toEqual(['press']));
   const actions = (await database.drafts.get('current'))!.configuration.groups[0]!.switches.A.actions;
@@ -229,7 +246,7 @@ it.each(['en', 'pt-BR'] as const)('cancels destructive actions and applies only 
   configuration.presets.push({ id: 'preset-solo', name: 'Solo', channel: 2, program: 99 });
   await database.snapshot(configuration, 'Before rehearsal');
   await ready(configuration);
-  fireEvent.click(screen.getByText(copy.groupName, { selector: 'summary' }));
+  fireEvent.click(screen.getByText(i18n.t('settings', { ns: 'workbenchEditor' }), { selector: 'summary' }));
   fireEvent.click(screen.getByRole('button', { name: copy.removeGroup }));
   let dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.cancel }));
@@ -261,7 +278,7 @@ it.each(['en', 'pt-BR'] as const)('cancels destructive actions and applies only 
 it.each(['en', 'pt-BR'] as const)('keeps edits through direct language changes and connection tools, with file proxies skipped by the keyboard in %s', async (locale) => {
   await i18n.changeLanguage(locale);
   const copy = locale === 'en' ? en : pt;
-  await ready(initialConfiguration(locale), false);
+  await ready(initialConfiguration(locale));
   const user = userEvent.setup();
   fireEvent.change(screen.getByLabelText(copy.label), { target: { value: 'Keyboard set' } });
   const jsonInput = screen.getByLabelText(copy.import) as HTMLInputElement;
@@ -273,7 +290,7 @@ it.each(['en', 'pt-BR'] as const)('keeps edits through direct language changes a
   fireEvent.change(language, { target: { value: nextLocale } });
   await waitFor(() => expect(i18n.language).toBe(nextLocale));
   const nextCopy = nextLocale === 'en' ? en : pt;
-  const connectionCopy = nextLocale === 'en' ? connectionEn : connectionPt;
+  const connectionCopy = nextLocale === 'en' ? workbenchConnectionEn : workbenchConnectionPt;
   expect((screen.getByLabelText(nextCopy.label) as HTMLInputElement).value).toBe('Keyboard set');
   fireEvent.click(screen.getByRole('button', { name: i18n.t('offline', { ns: 'workbench' }) }));
   const dialog = screen.getByRole('dialog', { name: i18n.t('connection', { ns: 'workbench' }) });
