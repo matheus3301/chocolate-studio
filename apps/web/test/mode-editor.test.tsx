@@ -89,7 +89,6 @@ it('keeps Advanced and Mix independent through mode selection and mixed MIDI edi
     return <ModeEditor configuration={current} onChange={next => { accepted = next; setCurrent(next); }} confirm={vi.fn()} />;
   }
   const editor = render(<Harness />);
-  fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
   fireEvent.change(screen.getByLabelText(i18n.t('program')), { target: { value: '25' } });
   expect(accepted.groups).toEqual(read.groups);
   expect(accepted.mixedGroups![0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 25 });
@@ -111,7 +110,7 @@ it('keeps Advanced and Mix independent through mode selection and mixed MIDI edi
   expect(configurationToBytes(fixedBaseline, selected.mock.calls[0]![0]).bytes).toEqual(Uint8Array.from(fixedBaseline, (byte, index) => index === 0 ? 11 : byte));
 });
 
-it('guards pending keyboard navigation and writes a shortcut only after explicit apply', () => {
+it('automatically commits valid keyboard edits without changing the stored initial group or dropping focus', () => {
   const configuration = configurationFromBytes(new Uint8Array(23646)).configuration;
   configuration.controller!.mode = 10;
   let accepted = configuration; const confirm = vi.fn(); const pending = vi.fn();
@@ -120,13 +119,14 @@ it('guards pending keyboard navigation and writes a shortcut only after explicit
     return <ModeEditor configuration={current} onChange={next => { accepted = next; setCurrent(next); }} confirm={confirm} onPendingChange={pending} />;
   }
   render(<Harness />);
-  fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '1' } });
-  fireEvent.change(screen.getByLabelText('Key'), { target: { value: '1' } });
   expect(accepted).toEqual(configuration);
+  fireEvent.change(screen.getByLabelText('Modifier'), { target: { value: '1' } });
+  const keyField = screen.getByLabelText('Key');
+  keyField.focus();
+  fireEvent.change(keyField, { target: { value: '1' } });
+  expect(document.activeElement).toBe(keyField);
   fireEvent.change(screen.getByLabelText('Group'), { target: { value: '1' } });
-  expect(confirm).toHaveBeenCalledTimes(1);
-  expect((screen.getByLabelText('Group') as HTMLSelectElement).value).toBe('0');
-  fireEvent.click(screen.getByRole('button', { name: 'Apply shortcut' }));
+  expect(confirm).not.toHaveBeenCalled();
   expect(accepted.controller!.keyboardAssignments!.find(entry => entry.groupIndex === 0 && entry.switchId === 'A')!.combination).toEqual({ modifier1: 1, modifier2: 0, key: 1 });
   expect(pending.mock.calls.at(-1)).toEqual([false]);
   const plan = configurationToBytes(new Uint8Array(23646), accepted);
@@ -217,22 +217,64 @@ it.each(['en', 'pt-BR'] as const)('keeps duplicate modifiers pending with one sp
   const changed = vi.fn(() => false); const pending = vi.fn();
   render(<ModeEditor configuration={configuration} onChange={changed} confirm={vi.fn()} onPendingChange={pending} />);
   fireEvent.change(screen.getByLabelText(i18n.t('modifier1', { ns: 'mode' })), { target: { value: '1' } });
-  // A native disabled option prevents normal choice; submit validation also handles forced/stale values.
+  // Native options prevent ordinary duplicates; forced/stale values still get inline validation.
   fireEvent.change(screen.getByLabelText(i18n.t('modifier2', { ns: 'mode' })), { target: { value: '1' } });
   fireEvent.change(screen.getByLabelText(i18n.t('key', { ns: 'mode' })), { target: { value: '1' } });
-  fireEvent.submit(screen.getByRole('form', { name: i18n.t('shortcut', { ns: 'mode' }) }));
-  expect(changed).not.toHaveBeenCalled();
+  expect(changed).toHaveBeenCalledTimes(1);
   expect(pending.mock.calls.at(-1)).toEqual([true]);
   expect(screen.getAllByRole('alert')).toHaveLength(1);
   expect(screen.getByRole('alert').textContent).toMatch(locale === 'en' ? /different modifiers/ : /modificadores diferentes/);
-  expect((screen.getByRole('button', { name: i18n.t('applyShortcut', { ns: 'mode' }) }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.change(screen.getByLabelText(i18n.t('modifier2', { ns: 'mode' })), { target: { value: '2' } });
-  fireEvent.click(screen.getByRole('button', { name: i18n.t('applyShortcut', { ns: 'mode' }) }));
-  expect(changed).toHaveBeenCalledTimes(1);
+  expect(changed).toHaveBeenCalledTimes(2);
   expect(screen.getAllByRole('alert')).toHaveLength(1);
   expect(pending.mock.calls.at(-1)).toEqual([true]);
   expect(configuration.controller!.keyboardAssignments![0]!.combination).toEqual({ modifier1: 0, modifier2: 0, key: 0 });
   fireEvent.click(screen.getByRole('button', { name: i18n.t('discard', { ns: 'mode' }) }));
   expect(screen.queryByRole('alert')).toBeNull();
   expect(pending.mock.calls.at(-1)).toEqual([false]);
+});
+
+it('previews exact fixed PC numbers through 127 and edits only after a deliberate whole-controller mode change', () => {
+  const configuration = createDefaultConfiguration();
+  configuration.controller = { mode: 0, pcMaxGroupIndex: 31, channelIndex: 3, customCommandA: 72 };
+  configuration.groups[0]!.switches.A = { label: 'Stored A', behavior: 'single', actions: [{ gesture: 'press', messages: [{ type: 'pc', channel: 6, program: 9, bank: { msb: 4 } }] }] };
+  configuration.mixedGroups = [{ ...structuredClone(configuration.groups[0]!), id: 'independent-mix' }];
+  let accepted = configuration;
+  function Harness() {
+    const [current, setCurrent] = useState(configuration);
+    return <ModeEditor hideSettings configuration={current} onChange={next => { accepted = next; setCurrent(next); }} confirm={vi.fn()}
+      onCustomize={() => { const next = { ...current, controller: { ...current.controller, mode: 3 } }; accepted = next; setCurrent(next); }} />;
+  }
+  render(<Harness />);
+  fireEvent.change(screen.getByLabelText('Preview group'), { target: { value: '31' } });
+  expect(screen.getAllByText('PC 124 · MIDI channel 4')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Switch D' }));
+  expect(screen.getAllByText('PC 127 · MIDI channel 4')).toHaveLength(2);
+  expect(accepted).toEqual(configuration);
+  expect(screen.queryByLabelText(i18n.t('program'))).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Customize this switch' }));
+  expect(accepted.groups).toEqual(configuration.groups);
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.editChoice', { choice: 'A' }) }));
+  fireEvent.change(screen.getByLabelText(i18n.t('program')), { target: { value: '20' } });
+  expect(accepted.groups[0]!.switches.A.actions[0]!.messages[0]).toEqual({ type: 'pc', channel: 6, program: 20, bank: { msb: 4 } });
+  expect(accepted.controller).toEqual({ ...configuration.controller, mode: 3 });
+  expect(accepted.mixedGroups).toEqual(configuration.mixedGroups);
+});
+
+it.each([
+  [5, 'Swipe up', 'Swipe right'],
+  [6, 'Rewind', 'Loop'],
+  [7, 'Up arrow', 'Right arrow'],
+  [8, 'Page Up', 'Enter'],
+  [9, 'Previous track', 'Volume up'],
+] as const)('keeps the fixed functions of mode %s separate from stored MIDI assignments', (mode, first, last) => {
+  const configuration = createDefaultConfiguration();
+  configuration.controller = { mode };
+  const changed = vi.fn();
+  render(<ModeEditor configuration={configuration} onChange={changed} confirm={vi.fn()} hideSettings />);
+  expect(screen.getAllByText(first)).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Switch D' }));
+  expect(screen.getAllByText(last)).toHaveLength(2);
+  expect(changed).not.toHaveBeenCalled();
+  expect(screen.queryByRole('spinbutton')).toBeNull();
 });
