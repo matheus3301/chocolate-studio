@@ -141,7 +141,7 @@ export function ConnectionExperience({ service, state, onRead, onOffline, onNoti
     {!connected && state.status !== 'unavailable' && <button type="button" className="connection-experience-connect" disabled={busy} onClick={discover}>
       {wt(!discovered ? 'connect' : failureKey ? 'retry' : 'refresh')}
     </button>}
-    <button type="button" className="connection-experience-offline" disabled={busy} onClick={onOffline}>{wt('offline')}</button>
+    {!connected && <button type="button" className="connection-experience-offline" disabled={busy} onClick={onOffline}>{wt('offline')}</button>}
     <details className="connection-experience-help"><summary>{wt('help')}</summary>
       <p>{wt('cable')}</p>
       {state.selection || state.identity ? <>

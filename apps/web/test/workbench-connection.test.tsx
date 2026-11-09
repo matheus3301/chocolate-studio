@@ -54,6 +54,13 @@ describe('safe connection candidates', () => {
 });
 
 describe('automatic connection experience', () => {
+  it('offers offline entry only when there is no qualified connection', async () => {
+    const value = workbenchFixture();
+    render(<Harness value={value} />);
+    expect(screen.queryByRole('button', { name: en.offline })).toBeNull();
+    await act(async () => { value.publish({ inputs: [], outputs: [] }); await value.service.disconnect(); });
+    expect(screen.getByRole('button', { name: en.offline })).toBeTruthy();
+  });
   it('enumerates a granted launch and adopts the full read once without another action', async () => {
     permission('granted'); const value = workbenchFixture(false); const onRead = vi.fn();
     const request = vi.spyOn(value.service, 'requestPorts'); const connect = vi.spyOn(value.service, 'connect'); const read = vi.spyOn(value.service, 'read'); const write = vi.spyOn(value.service, 'write');

@@ -47,3 +47,9 @@ Implementation/qualification notes
   Routine copy: USB cable instruction; no read-complete announcement; verified status only Saved to Chocolate / Salvo no Chocolate. Readback/physical explanation is inside optional/exceptional review. Non-actionable labels-local warnings are omitted.
   Verification: 51 new behavioral tests passed; 107 existing connection/preview/mapping/browser-adapter tests passed. Web tsc --noEmit passed; new test files have no LSP TypeScript diagnostics.
   No hardware, browser, desktop, deployment, dependency or shared-memory writes performed. Visual/CSS, real permissions/port naming across platforms and physical hardware qualification are intentionally left to the coordinator.
+
+Read-adoption follow-up
+  Connected/qualified sessions no longer offer Edit offline in ConnectionExperience; the parent connection dialog supplies Close. Offline entry remains available after disconnect.
+  workbench-read-adoption.test.tsx adds three integration regressions: inactive Advanced edits in PC mode require an explicit recovery choice; rejected cached reads are not re-offered on connection remount; cached-read connection tools stay open while an explicit fresh read is still adopted; choosing the device read preserves the earlier inactive edit in a recovery copy. No test writes to hardware.
+  Tests use ordinary relative App/storage imports, with no machine-specific paths. They require the coordinator's direct-editor App/recovery integration; this isolated branch intentionally does not modify its older App. Verified against the coordinator source using a temporary resolver, then removed that resolver.
+  Follow-up verification: three coordinator integration tests and sixteen owned connection tests passed; owned web tsc --noEmit passed. Root sources remained read-only.
