@@ -60,7 +60,7 @@ function NumericInput({ label, text, min = 0, max = 127, onChange }: { label: st
   const { wt } = useWorkbenchTranslation();
   const id = useId();
   const valid = text !== '' && Number.isInteger(Number(text)) && Number(text) >= min && Number(text) <= max;
-  return <label className="field numeric workbench-field"><span>{label}</span><input style={{ minHeight: 44 }} type="number" inputMode="numeric" min={min} max={max} step={1} required value={text} aria-invalid={!valid} aria-describedby={!valid ? id : undefined} onChange={event => onChange(event.currentTarget.value)} />
+  return <label className="field numeric workbench-field"><span>{label}</span><input style={{ minHeight: 44 }} type="number" aria-label={label} inputMode="numeric" min={min} max={max} step={1} required value={text} aria-invalid={!valid} aria-describedby={!valid ? id : undefined} onChange={event => onChange(event.currentTarget.value)} />
     {!valid && <span className="field-error warning-text" id={id}>{wt('numberError', { min, max })}</span>}
   </label>;
 }
@@ -75,7 +75,7 @@ function RetainedNameField({ label, value, max, allowEmpty = false, owner, draft
   const [text, setText] = useState(() => drafts.get(owner) ?? value);
   const [error, setError] = useState(drafts.has(owner));
   useEffect(() => { if (!drafts.has(owner)) setText(value); }, [value, owner, drafts]);
-  return <label className="field workbench-field"><span id={`${id}-label`}>{label}</span><input style={{ minHeight: 44 }} value={text} maxLength={max} required={!allowEmpty} aria-invalid={error} aria-labelledby={`${id}-label`} aria-describedby={error ? `${id}-error` : undefined} onChange={event => {
+  return <label className="field workbench-field"><span id={`${id}-label`}>{label}</span><input style={{ minHeight: 44 }} aria-label={label} value={text} maxLength={max} required={!allowEmpty} aria-invalid={error} aria-labelledby={`${id}-label`} aria-describedby={error ? `${id}-error` : undefined} onChange={event => {
     const next = event.currentTarget.value;
     setText(next);
     let accepted = false;
@@ -294,7 +294,7 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'pt-BR';
   const controllerId = useId();
   const [localSequence, setLocalSequence] = useState<Sequence>('primary');
-  const rawSequence = sequence ?? localSequence;
+  const requestedSequence = sequence ?? localSequence;
   const setRawSequence = (next: Sequence) => { setLocalSequence(next); onSequence?.(next); };
   const [pending, setPending] = useState<string[]>([]);
   const pendingOwners = useRef(new Set<string>());
@@ -319,6 +319,12 @@ export function GuidedEditor({ configuration, onChange, groupId, onGroup, switch
     if (pendingOwners.current.has(JSON.stringify([group.id, switchId, 'primary', 'label'])) && switchSettingsRef.current) switchSettingsRef.current.open = true;
     if (pendingOwners.current.has(JSON.stringify([group.id, switchId, 'primary', 'groupName'])) && groupSettingsRef.current) groupSettingsRef.current.open = true;
   }, [pending, group?.id, switchId]);
+  const rawSequence = requestedSequence === 'primary' || requestedSequence === 'secondary'
+    || group?.switches[switchId].actions.some(action => action.gesture === requestedSequence)
+    ? requestedSequence : 'primary';
+  useEffect(() => {
+    if (requestedSequence !== rawSequence) setRawSequence(rawSequence);
+  }, [requestedSequence, rawSequence]);
   if (!group) return <p role="status">{t('guided.noReadGroups')}</p>;
   const pedal = group.switches[switchId];
   const index = groups.indexOf(group);

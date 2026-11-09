@@ -20,7 +20,7 @@ export const workbenchConnectionEn = {
   failed: 'The operation did not complete. Your local changes were kept. Check the connection and try again.',
   unsupportedIdentity: 'This controller identity is not supported. Nothing was written.',
   save: 'Save to Chocolate', saving: 'Saving and checking…', changes: 'Unsaved changes', noPending: 'No pending changes',
-  verified: 'Saved to Chocolate', disconnected: 'Not connected. Local changes are kept.',
+  verified: 'Saved to Chocolate', disconnected: 'Connect to save to Chocolate.',
   capability: 'Saving is unavailable for this connection. Reconnect and read the complete supported configuration.',
   viewChanges: 'View changes', review: 'Changes to Chocolate', cancel: 'Cancel', close: 'Close',
   modeReview: 'Review controller mode change',
@@ -33,7 +33,7 @@ export const workbenchConnectionEn = {
   previewExpired: 'The draft, connection, or last read changed. Nothing was saved; try Save again.',
   invalidDraft: 'This configuration cannot be saved. Correct the invalid fields before trying again.',
   unsupported: 'These changes are not supported. Nothing will be partially saved.',
-  byteChanges: '{{count}} changed bytes', physical: 'Saving checks the stored configuration by a complete readback. Sound and physical switch behavior are checked separately.',
+  byteChanges: '{{count}} changed bytes', byteChanges_one: '{{count}} changed byte', physical: 'Saving checks the stored configuration by a complete readback. Sound and physical switch behavior are checked separately.',
 } as const;
 
 export const workbenchConnectionPt: Record<keyof typeof workbenchConnectionEn, string> = {
@@ -56,7 +56,7 @@ export const workbenchConnectionPt: Record<keyof typeof workbenchConnectionEn, s
   failed: 'A operação não foi concluída. Suas alterações locais foram mantidas. Confira a conexão e tente novamente.',
   unsupportedIdentity: 'A identidade deste controlador não é suportada. Nada foi gravado.',
   save: 'Salvar no Chocolate', saving: 'Salvando e conferindo…', changes: 'Alterações não salvas', noPending: 'Nenhuma alteração pendente',
-  verified: 'Salvo no Chocolate', disconnected: 'Sem conexão. As alterações locais foram mantidas.',
+  verified: 'Salvo no Chocolate', disconnected: 'Conecte para salvar no Chocolate.',
   capability: 'Não é possível salvar nesta conexão. Reconecte e leia a configuração completa de um aparelho suportado.',
   viewChanges: 'Ver alterações', review: 'Alterações no Chocolate', cancel: 'Cancelar', close: 'Fechar',
   modeReview: 'Revisar mudança de modo do controlador',
@@ -69,7 +69,7 @@ export const workbenchConnectionPt: Record<keyof typeof workbenchConnectionEn, s
   previewExpired: 'A edição, a conexão ou a última leitura mudou. Nada foi salvo; tente Salvar novamente.',
   invalidDraft: 'Esta configuração não pode ser salva. Corrija os campos inválidos antes de tentar novamente.',
   unsupported: 'Estas alterações não são suportadas. Nada será salvo parcialmente.',
-  byteChanges: '{{count}} bytes alterados', physical: 'Ao salvar, a configuração armazenada é conferida por releitura completa. O som e o comportamento físico dos botões são conferidos separadamente.',
+  byteChanges: '{{count}} bytes alterados', byteChanges_one: '{{count}} byte alterado', physical: 'Ao salvar, a configuração armazenada é conferida por releitura completa. O som e o comportamento físico dos botões são conferidos separadamente.',
 };
 
 export function useWorkbenchConnectionTranslation() {

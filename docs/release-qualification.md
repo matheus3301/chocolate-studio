@@ -1,6 +1,6 @@
 # Beta qualification
 
-Release: `0.1.0-beta.5`. Tests performed 2026-11-07/08 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
+Release: `0.1.0-beta.6`. Tests performed 2026-11-07/09 on macOS 26.6.2. The controller identifies as `FootCtrlPlus_016`; the firmware version is unknown (the identity suffix is not treated as a verified firmware version).
 
 | Capability | Evidence and boundary |
 | --- | --- |
@@ -15,6 +15,43 @@ Release: `0.1.0-beta.5`. Tests performed 2026-11-07/08 on macOS 26.6.2. The cont
 | Factory reset / firmware update | Unsupported. No guessed reset or flashing command. |
 
 The baseline remains private. Its SHA-256 is `6d45d5b2655f363f892bda52bfd3ca56e5ae69188cba0bd29a110f5d13ed21b7`. A final independent read-only pass matched that original image exactly after the experiments. Proprietary executables/disassembly, personal configuration bytes, raw private traces and credentials are excluded from Git and runtime assets.
+
+## Direct editor (beta.6)
+
+The mandatory wizard and project workspace were replaced by a direct controller
+editor. [Design rationale](../.interface-design/system.md) explains the scope and
+placement of every main control; [the product proposal](product/ui-reset-proposal.md)
+contains the research and flows. Language is directly accessible as Português /
+English. File operations, controller-wide options and individual switch actions
+have distinct locations. The thirteen mode families remain available.
+
+427 tests, strict typecheck and the production build pass. New tests cover
+permission-aware discovery, qualified pairing, save/review invalidation,
+revision-safe autosave, memory-only recovery, inactive-mode edits, cached read
+replay, gesture removal, and incomplete fields across selection/language changes.
+Opening or selecting equipment cannot silently rewrite existing MIDI. Local
+recovery is distinct from explicit, fully verified hardware saving.
+
+Coordinator CUA checks exercised all thirteen modes at 320px without horizontal
+control/document overflow, and inspected 390/830/1280px layouts. The 830px layout
+keeps the action form next to the controller; phone layouts show the selected
+summary rather than pushing the form below four full cards. PT/EN preserves an
+incomplete preset field; a reload retains valid configuration and language.
+This is technical and visual qualification, not an observed novice usability study.
+
+Actual Chrome Web MIDI opened and read the connected controller automatically
+with the existing permission. Channel 1→2→1 and PC→Advanced→PC were written through
+the new save bar, each with complete readback. Mode changes required the concrete
+impact review. An independent native final read matched all 23,646 original bytes
+and the baseline hash above. See [experiment 007](../research/experiments/007-direct-editor-roundtrip.md).
+Physical footpress output, receiving-equipment sound and power-cycle retention
+were not newly tested.
+
+The Docker image was built with fresh base pulls; size is 13,932,448 bytes
+(+23,537 from beta.5). It runs as 101:101 with a read-only root and writable `/tmp`.
+Production dependency audit found zero known vulnerabilities. Trivy and Docker
+Scout remain unavailable, so no image scan is claimed. The main JavaScript asset
+is 713.94 kB (214.99 kB gzip); Vite's bundle-size advisory remains open.
 
 ## Mode-aware setup (beta.5)
 

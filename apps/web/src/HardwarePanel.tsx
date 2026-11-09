@@ -22,11 +22,12 @@ export interface HardwarePanelProps {
   onReviewRead: (configuration: StudioConfiguration) => void;
   onNotice: (key: string) => void;
   compact?: boolean;
+  recoveryOnly?: boolean;
   onVerified?: (read: VerifiedDeviceRead) => void;
   onPendingChange?: (pending: boolean) => void;
 }
 
-export function HardwarePanel({ service, state, configuration, onReviewRead, onNotice, compact = false, onVerified, onPendingChange }: HardwarePanelProps) {
+export function HardwarePanel({ service, state, configuration, onReviewRead, onNotice, compact = false, recoveryOnly = false, onVerified, onPendingChange }: HardwarePanelProps) {
   const { t, i18n } = useTranslation();
   const { ct } = useConnectionTranslation();
   const [inputId, setInput] = useState('');
@@ -130,7 +131,7 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
   }
 
   return <section className={`panel hardware-panel${compact ? ' hardware-panel-compact' : ''}`} aria-label={ct('reviewSave')}>
-    <header className="section-heading"><h2>{ct('reviewSave')}</h2></header>
+    {!recoveryOnly && <><header className="section-heading"><h2>{ct('reviewSave')}</h2></header>
     {!compact && <><ControllerModeNotice {...(state.observed?.controller ? { controller: state.observed.controller } : {})} />
       <p className="helper">{ct('physicalCaveat')}</p></>}
     {compact && state.observed && <p className="helper" role="status">{t(state.verified ? 'lastVerified' : 'lastRead')} · {new Date(state.verified?.verifiedAt ?? state.observed.readAt).toLocaleTimeString(i18n.language)}</p>}
@@ -162,7 +163,9 @@ export function HardwarePanel({ service, state, configuration, onReviewRead, onN
         {state.observed.warnings.map((warning, index) => <p className="warning-text" key={`${warning}-${index}`}>{t(warning, { defaultValue: warning })}</p>)}</>}
     </details>
 
-    <details className="raw-library"><summary>{ct('backupDetails')} <span>{copies.length}</span></summary><p className="helper">{t('rawFileHint')}</p>
+    </>}
+    {recoveryOnly && state.baseline && !backup.ready && <OriginalBackupControls backup={backup} />}
+    <details className="raw-library" open={recoveryOnly || undefined}><summary>{ct('backupDetails')} <span>{copies.length}</span></summary><p className="helper">{t('rawFileHint')}</p>
       <button className="secondary" onClick={() => fileInput.current?.click()}><Icon name="upload" />{t('importRaw')}</button>
       <input className="visually-hidden" type="file" tabIndex={-1} aria-label={t('importRaw')} accept=".fcp,application/octet-stream" ref={fileInput} onChange={event => {
         const file = event.target.files?.[0]; event.target.value = ''; if (file) void importRaw(file);

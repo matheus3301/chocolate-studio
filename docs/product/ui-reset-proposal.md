@@ -21,7 +21,7 @@ Evidência: relato direto do usuário e inspeção de `ConnectionStep.tsx`, `con
 | Conectar, ler, continuar, escolher modo, continuar | Muitos atos sem resultado musical | Conectar e abrir diretamente o estado lido |
 | Estados internos e avisos competem com a tarefa | A pessoa não sabe o próximo passo | Um estado curto por vez, junto da ação correspondente |
 | Campo cru de MIDI antes da intenção | Obriga a conhecer PC/CC e valores | Equipamento → ação → parâmetro; MIDI manual como alternativa explícita |
-| “Projetos”, “pedalboard”, backups, idioma na área principal | Objetos que não correspondem ao pedal | Configurações e preferências em ferramentas secundárias |
+| Nome de pedalboard/projeto, cópias e idioma agrupados sem relação | Mistura decisões de escopos distintos | Arquivo para documentos; idioma direto; controles do pedal no contexto |
 | Muitos collapses e seções longas | Esconde relações e cria rolagem | Painel do botão selecionado, mostrando um gesto de cada vez |
 
 O problema não se resolve apenas reduzindo espaçamento ou trocando cores. A estrutura atual segue operações internas da aplicação; a nova estrutura segue as decisões do músico.
@@ -80,7 +80,7 @@ Experimentos antes da implementação: comparar editor direto com um storyboard 
 
 **Área principal:** nome Chocolate Plus; estado de conexão; modo atual e Alterar; desenho A–D; resumo das ações; painel do botão selecionado; estado das alterações e Salvar no Chocolate.
 
-**Ferramentas secundárias:** Configurações (abrir/baixar cópia/histórico); Ajustes do Chocolate (modo, canal, pedal externo e demais opções suportadas); Preferências (idioma); Ajuda de conexão. Não existe nome obrigatório de pedalboard ou projeto, nem sidebar de módulos vazios.
+**Ferramentas do aplicativo:** Arquivo (abrir/baixar cópia/recuperação) e idioma Português / English diretamente no cabeçalho. **Controles do equipamento:** modo e opções globais junto do Chocolate; pedal externo em painel próprio. Canal da mensagem junto da ação. Ajuda junto da conexão. Não existe nome obrigatório de pedalboard ou projeto, nem sidebar de módulos vazios.
 
 O equipamento de destino é contexto da ação, não identidade da aplicação. O modelo M5 fornece rótulos, limites, requisitos e tradução para mensagens. A estrutura permanece igual para outro perfil. Uma ação pode apontar para um destino diferente quando o controlador e seu roteamento permitirem; a UI não deve impor um único equipamento global artificialmente.
 
@@ -254,7 +254,7 @@ Roteiro: (a) explicar o que vê na primeira abertura; (b) configurar A; (c) expl
 
 Protótipo navegável em português com editor principal, conexão simulada, preset sequencial, mudança contextual para ações personalizadas, toque/segurar, equipamento genérico/M5, salvamento simulado, arquivos e alguns estados de falha. Fluxos e pesquisa acessíveis na própria página.
 
-Não é uma implementação funcional de MIDI, catálogo completo de todos os modos, tradução completa nem prova de usabilidade. A próxima decisão é validar o modelo de interação e a hierarquia; após isso, detalhar os painéis restantes e implementar. Nenhum arquivo da aplicação ou release foi modificado nesta etapa.
+Não é uma implementação funcional de MIDI, catálogo completo de todos os modos, tradução completa nem prova de usabilidade. A próxima decisão é validar o modelo de interação e a hierarquia; após isso, detalhar os painéis restantes e implementar. Na etapa da maquete, nenhum arquivo da aplicação ou release foi modificado. A autorização posterior e o contrato de implementação estão registrados ao final deste documento.
 
 ## Apêndice A — composição dos painéis por família
 

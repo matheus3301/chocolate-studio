@@ -32,3 +32,10 @@ Desktop: duas colunas, objeto e inspector. Estreito: objeto antes do inspector; 
 ## Aceitação
 
 PT/EN sem reconectar ou perder campos; fluxo sem wizard obrigatório; todos os 13 modos acessíveis; mesma semântica preservada em Advanced/Mix/teclado; erros recuperáveis; sem escrita automática; 320/390/830/1280px e zoom; nomes longos e erros visíveis; nenhum campo suportado perdido na migração. Qualificação técnica não é aprovação de usabilidade.
+
+## Refinamentos após inspeção no navegador
+
+- Ação primeiro: nome e comportamento ficam em um único detalhamento opcional após os campos da ação. O atalho para adicionar segurar continua junto dos gestos. Isso preserva comportamentos avançados sem exigir que iniciantes escolham uma taxonomia de bancos A/B antes de configurar um botão.
+- Grupos ficam sob a visão geral; bibliotecas ficam após a ação, porque nenhuma delas é requisito para selecionar equipamento e função.
+- Até 600px, apenas o resumo do botão selecionado aparece; os quatro botões físicos continuam disponíveis. Quatro cartões completos empurravam o formulário para baixo e repetiam informação. Em telas maiores, os quatro resumos permitem comparação simultânea.
+- Portas só aparecem na ajuda; a entrada real em Chrome com permissão já concedida identificou e leu o dispositivo automaticamente. Isso não elimina a permissão inicial exigida pelo navegador.

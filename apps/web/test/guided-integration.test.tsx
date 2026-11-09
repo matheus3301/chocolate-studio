@@ -13,7 +13,10 @@ import { initializeLanguage } from '../src/i18n.js';
 import { database } from '../src/storage.js';
 import { useStudio } from '../src/useStudio.js';
 
-beforeAll(async () => { await initializeLanguage('en'); });
+beforeAll(async () => { await initializeLanguage('en');
+  if (!HTMLDialogElement.prototype.showModal) HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  if (!HTMLDialogElement.prototype.close) HTMLDialogElement.prototype.close = function () { this.open = false; };
+});
 beforeEach(async () => { await database.open(); });
 afterEach(async () => { cleanup(); await database.delete(); });
 
@@ -81,16 +84,15 @@ it('reconciles a fresh connection against saved musical intent before adopting t
   const mapped = configurationFromBytes(encoded.bytes);
   expect(mapped.configuration.groups[0]!.switches.A.actionBindings).toBeUndefined();
   const raw = { id: 'fresh-baseline', sha256: 'synthetic-test', bytes: encoded.bytes, capturedAt: 1,
-    identity: { name: 'Synthetic', manufacturer: null, model: null, firmware: null } };
+    identity: { name: 'FootCtrlPlus_016', manufacturer: null, model: null, firmware: null } };
   const observed = { ...mapped, rawBackup: raw, readAt: 1 };
   const snapshot = { ...unavailableHardware.getSnapshot(), status: 'connected' as const, identity: raw.identity,
     selection: { inputId: 'in', outputId: 'out' }, capabilities: { read: true, write: false, preview: false, restore: false },
     observed, baseline: raw, backupSafety: { baselineId: raw.id, sha256: raw.sha256, method: 'stored' as const } };
   const service = { ...unavailableHardware, getSnapshot: () => snapshot, acknowledgeBackup: async () => {} };
   render(<App hardware={service} />);
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue', exact: true })).toBeTruthy());
-  fireEvent.click(screen.getByRole('button', { name: 'Continue', exact: true }));
-  fireEvent.click(screen.getByRole('button', { name: 'Edit the configuration from Chocolate', exact: true }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Chocolate Plus', exact: true })).toBeTruthy());
+  expect(screen.queryByRole('button', { name: 'Continue', exact: true })).toBeNull();
   await waitFor(async () => expect((await database.drafts.get('current'))?.revision).toBe(1));
   const restored = (await database.drafts.get('current'))!.configuration;
   expect(restored.groups[0]!.switches.A.actionBindings).toEqual(local.groups[0]!.switches.A.actionBindings);
@@ -115,7 +117,7 @@ it('distinguishes restored controller mode from the retained local draft without
   const mapped = configurationFromBytes(bytes);
   await database.initialize(mapped.configuration);
   const raw = { id: 'before-restore', sha256: 'synthetic-keyboard', bytes, capturedAt: 1,
-    identity: { name: 'Synthetic controller', manufacturer: null, model: null, firmware: null } };
+    identity: { name: 'FootCtrlPlus_016', manufacturer: null, model: null, firmware: null } };
   let snapshot: HardwareSnapshot = { ...unavailableHardware.getSnapshot(), status: 'connected', identity: raw.identity,
     selection: { inputId: 'in', outputId: 'out' }, capabilities: { read: true, write: false, preview: false, restore: false },
     observed: { ...mapped, rawBackup: raw, readAt: 1 }, baseline: raw,
@@ -123,16 +125,13 @@ it('distinguishes restored controller mode from the retained local draft without
   const listeners = new Set<() => void>();
   const service = { ...unavailableHardware, getSnapshot: () => snapshot, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; }, acknowledgeBackup: async () => {} };
   render(<App hardware={service} />);
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Continue editing' }) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Use this mode' }));
-  expect(screen.getByText('Draft mode:')).toBeTruthy();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Operating mode: Custom keyboard mode' })).toBeTruthy());
   const restoredBytes = new Uint8Array(23646);
   act(() => {
     snapshot = { ...snapshot, observed: { ...configurationFromBytes(restoredBytes), rawBackup: { ...raw, id: 'restored', bytes: restoredBytes }, readAt: 2 } };
     for (const listener of listeners) listener();
   });
-  expect(screen.getByText('Mode last read from Chocolate: Change presets (PC)')).toBeTruthy();
-  expect(screen.getByRole('heading', { name: 'Custom keyboard mode' })).toBeTruthy();
+  expect(screen.getByText(/On Chocolate: Change presets \(PC\) → Editing: Custom keyboard mode/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Operating mode: Custom keyboard mode' })).toBeTruthy();
   expect((await database.drafts.get('current'))!.configuration.controller!.mode).toBe(10);
 });
