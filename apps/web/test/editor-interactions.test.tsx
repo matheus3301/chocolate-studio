@@ -5,37 +5,39 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIGURATION_LIMITS, SWITCH_IDS, exportConfiguration, studioConfigurationSchema } from '@chocolate-studio/midi';
 import type { StudioConfiguration } from '@chocolate-studio/midi';
-import { shellEn, shellPt } from '../src/shell-i18n.js';
+import { connectionEn, connectionPt } from '../src/connection-i18n.js';
 import { App } from '../src/App.js';
 import { initialConfiguration, sameConfiguration, setMessages } from '../src/editor.js';
 import { en, i18n, initializeLanguage, pt } from '../src/i18n.js';
 import { database } from '../src/storage.js';
 import { useStudio } from '../src/useStudio.js';
-import { unavailableHardware } from '../src/hardware.js';
-import type { HardwareService, HardwareSnapshot } from '../src/hardware.js';
 
 function pendingFile(text: Promise<string>): File {
   return { size: 100, text: () => text } as File;
 }
-async function ready(configuration = initialConfiguration('en'), hardware?: HardwareService, advanced = true) {
+async function ready(configuration = initialConfiguration('en'), advanced = true) {
   await database.initialize(configuration);
-  const rendered = render(<App {...(hardware ? { hardware } : {})} />);
-  await waitFor(() => expect((screen.getByLabelText(i18n.t('projectName')) as HTMLInputElement).disabled).toBe(false));
-  openFiles();
-  if (advanced) {
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('flowContinue', { ns: 'shell' }) }));
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('continue', { ns: 'mode' }) }));
-    if (screen.queryByRole('button', { name: i18n.t('guided.editSwitches') })) {
-      fireEvent.change(screen.getByLabelText(i18n.t('guided.equipmentInstance')), { target: { value: configuration.destinations[0]!.id } });
-      fireEvent.click(screen.getByRole('button', { name: i18n.t('guided.editSwitches') }));
-    }
-    fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
-  }
+  const rendered = render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: i18n.t('offline', { ns: 'connection' }) }));
+  if (advanced) setAdvanced(true);
   return rendered;
 }
-function openFiles() { const summary = screen.getByText(i18n.t('flowFiles', { ns: 'shell' }), { selector: 'summary' }); if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary); }
-function openTools() { const summary = screen.getByText(i18n.t('flowUtilities', { ns: 'shell' }), { selector: 'summary' }); if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary); }
-function saveButton() { openFiles(); return screen.getByRole('button', { name: i18n.t('flowLocalSave', { ns: 'shell' }) }); }
+function setAdvanced(open: boolean) {
+  const summary = screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' });
+  if (summary.parentElement?.hasAttribute('open') !== open) fireEvent.click(summary);
+}
+function openFiles() {
+  const summary = screen.getByText(i18n.t('file', { ns: 'workbench' }), { selector: 'summary' });
+  if (!summary.parentElement?.hasAttribute('open')) fireEvent.click(summary);
+}
+function openPresets() {
+  setAdvanced(false);
+  fireEvent.click(screen.getByRole('button', { name: /preset/i }));
+}
+function openDestinations() {
+  setAdvanced(false);
+  fireEvent.click(screen.getByRole('button', { name: /equipment|equipamento|destina/i }));
+}
 
 function fullConfiguration(): StudioConfiguration {
   const configuration = initialConfiguration('en');
@@ -63,30 +65,29 @@ beforeAll(async () => {
 beforeEach(async () => { await i18n.changeLanguage('en'); await database.open(); });
 afterEach(async () => { cleanup(); vi.restoreAllMocks(); await database.delete(); });
 
-it('blocks name edits during initial loading and saving, then permits editing after completion', async () => {
+it('waits for initialization, then keeps valid fields editable during automatic local saving', async () => {
   const loading = Promise.withResolvers<void>();
   const initialize = database.initialize.bind(database);
-  vi.spyOn(database, 'initialize').mockImplementation(async (configuration) => { await loading.promise; return initialize(configuration); });
+  vi.spyOn(database, 'initialize').mockImplementation(async (...args) => { await loading.promise; return initialize(...args); });
   render(<App />);
-  const user = userEvent.setup();
-  const name = screen.getByLabelText(en.projectName) as HTMLInputElement;
-  const original = name.value;
-  expect(name.disabled).toBe(true);
-  await user.type(name, 'lost name');
-  expect(name.value).toBe(original);
+  expect(screen.queryByLabelText(en.program)).toBeNull();
   await act(async () => { loading.resolve(); });
-  await waitFor(() => expect(name.disabled).toBe(false));
-  fireEvent.change(name, { target: { value: 'Clean set' } });
+  fireEvent.click(await screen.findByRole('button', { name: connectionEn.offline }));
+  setAdvanced(true);
   const saving = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
   const save = database.save.bind(database);
-  vi.spyOn(database, 'save').mockImplementation(async (configuration, revision) => { await saving.promise; return save(configuration, revision); });
-  await user.click(saveButton());
-  expect(name.disabled).toBe(true);
-  await user.type(name, 'lost while saving');
-  expect(name.value).toBe('Clean set');
+  vi.spyOn(database, 'save').mockImplementationOnce(async (...args) => {
+    started.resolve(); await saving.promise; return save(...args);
+  });
+  const program = screen.getAllByLabelText(en.program)[0] as HTMLInputElement;
+  fireEvent.change(program, { target: { value: '17' } });
+  await act(async () => { await started.promise; });
+  expect(program.matches(':disabled')).toBe(false);
+  fireEvent.change(program, { target: { value: '42' } });
+  expect(program.value).toBe('42');
   await act(async () => { saving.resolve(); });
-  await waitFor(() => expect(name.disabled).toBe(false));
-  expect((await database.drafts.get('current'))?.configuration.name).toBe('Clean set');
+  await waitFor(async () => expect((await database.drafts.get('current'))?.configuration.groups[0]?.switches.A.actions[0]?.messages[0]).toMatchObject({ program: 42 }));
 });
 
 describe('import review generation', () => {
@@ -131,11 +132,12 @@ describe('aggregate message capacity', () => {
       fireEvent.click(screen.getByText(en.groupName, { selector: 'summary' }));
       fireEvent.click(screen.getByRole('button', { name: en.duplicateGroup }));
     } else {
-      openTools(); fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.presets}`) }));
-      fireEvent.click(screen.getByRole('button', { name: en.usePreset }));
-      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.usePreset }));
-      fireEvent.click(screen.getByRole('button', { name: shellEn.flowBack }));
-      fireEvent.click(screen.getByText(i18n.t('guided.advancedMidi'), { selector: 'summary' }));
+      openPresets();
+      const library = screen.getByRole('dialog');
+      fireEvent.click(within(library).getByRole('button', { name: en.usePreset }));
+      fireEvent.click(within(screen.getByRole('dialog', { name: en.confirmPreset })).getByRole('button', { name: en.usePreset }));
+      fireEvent.click(within(library).getByRole('button', { name: en.close }));
+      setAdvanced(true);
     }
     expect(screen.getByRole('alert').textContent).toContain(en.limitReached);
     expect(screen.getByRole('button', { name: en.secondary }).getAttribute('aria-pressed')).toBe('true');
@@ -190,10 +192,11 @@ it('rejects JSON byte overflow and restores accepted numeric/name displays at th
   fireEvent.change(program, { target: { value: '127' } });
   fireEvent.blur(program);
   expect(program.value).toBe('0');
-  const name = screen.getByLabelText(en.projectName) as HTMLInputElement;
+  openDestinations();
+  const name = screen.getByLabelText(en.destinationName) as HTMLInputElement;
   fireEvent.change(name, { target: { value: 'é'.repeat(128) } });
   fireEvent.blur(name);
-  expect(name.value).toBe(configuration.name);
+  expect(name.value).toBe(configuration.destinations[0]!.name);
   const persisted = (await database.drafts.get('current'))!.configuration;
   expect(persisted.groups[0]!.switches.A.actions[0]!.messages[0]).toMatchObject({ type: 'pc', program: 0 });
   expect(persisted.groups[0]!.switches.A.secondaryMessages).toBeUndefined();
@@ -209,14 +212,13 @@ it('returns to Bank A after removing the selected additional gesture and adds su
   expect(screen.queryByLabelText(en.additionalGesture)).toBeNull();
   expect(screen.getByRole('button', { name: en.primary }).getAttribute('aria-pressed')).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: en.addCc }));
-  fireEvent.click(saveButton());
-  await waitFor(() => expect((saveButton() as HTMLButtonElement).disabled).toBe(true));
+  await waitFor(async () => expect((await database.drafts.get('current'))?.configuration.groups[0]?.switches.A.actions.map(action => action.gesture)).toEqual(['press']));
   const actions = (await database.drafts.get('current'))!.configuration.groups[0]!.switches.A.actions;
   expect(actions.map((action) => action.gesture)).toEqual(['press']);
   expect(actions[0]!.messages.map((message) => message.type)).toEqual(['pc', 'cc']);
 });
 
-it.each(['en', 'pt-BR'] as const)('names actual confirmation actions in %s and performs only the confirmed operation', async (locale) => {
+it.each(['en', 'pt-BR'] as const)('cancels destructive actions and applies only confirmed group, recovery and preset changes in %s', async (locale) => {
   await i18n.changeLanguage(locale);
   const copy = locale === 'en' ? en : pt;
   const configuration = initialConfiguration(locale);
@@ -232,41 +234,53 @@ it.each(['en', 'pt-BR'] as const)('names actual confirmation actions in %s and p
   let dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.cancel }));
   expect(screen.getByRole('option', { name: 'Second group' })).toBeTruthy();
+  expect((screen.getByLabelText(i18n.t('guided.goToChoices')) as HTMLSelectElement).value).toBe(configuration.groups[0]!.id);
   fireEvent.click(screen.getByRole('button', { name: copy.removeGroup }));
   dialog = screen.getByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: copy.removeGroup }));
-  openFiles(); fireEvent.click(screen.getByRole('button', { name: copy.backups }));
-  fireEvent.click(screen.getByRole('button', { name: copy.delete }));
-  dialog = screen.getByRole('dialog');
+  openFiles(); fireEvent.click(screen.getByRole('button', { name: i18n.t('recovery', { ns: 'workbench' }) }));
+  const recovery = screen.getByRole('dialog', { name: i18n.t('recovery', { ns: 'workbench' }) });
+  fireEvent.click(within(recovery).getByRole('button', { name: copy.delete }));
+  dialog = screen.getByRole('dialog', { name: copy.deleteBackup });
   expect(await database.backups.count()).toBe(1);
   fireEvent.click(within(dialog).getByRole('button', { name: copy.delete }));
   await waitFor(async () => expect(await database.backups.count()).toBe(0));
-  await waitFor(() => expect((screen.getByLabelText(copy.projectName) as HTMLInputElement).disabled).toBe(false));
-  openTools(); fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${copy.presets}`) }));
-  fireEvent.click(screen.getByRole('button', { name: copy.usePreset }));
-  dialog = screen.getByRole('dialog');
+  await waitFor(() => expect(screen.getAllByLabelText(copy.program)[0]!.matches(':disabled')).toBe(false));
+  fireEvent.click(within(recovery).getByRole('button', { name: copy.close }));
+  openPresets();
+  const library = screen.getByRole('dialog');
+  fireEvent.click(within(library).getByRole('button', { name: copy.usePreset }));
+  dialog = screen.getByRole('dialog', { name: copy.confirmPreset });
   fireEvent.click(within(dialog).getByRole('button', { name: copy.usePreset }));
-  fireEvent.click(saveButton());
-  await waitFor(() => expect((saveButton() as HTMLButtonElement).disabled).toBe(true));
+  await waitFor(async () => expect((await database.drafts.get('current'))?.configuration.groups[0]?.switches.A.actions[0]?.messages[0]).toEqual({ type: 'pc', channel: 2, program: 99 }));
   const stored = (await database.drafts.get('current'))!.configuration;
   expect(stored.groups.map((group) => group.id)).toEqual(['group-2']);
   expect(stored.groups[0]!.switches.A.actions[0]!.messages[0]).toEqual({ type: 'pc', channel: 2, program: 99 });
 });
 
-it.each(['en', 'pt-BR'] as const)('keeps file proxies out of keyboard navigation and opens the connection step in %s', async (locale) => {
+it.each(['en', 'pt-BR'] as const)('keeps edits through direct language changes and connection tools, with file proxies skipped by the keyboard in %s', async (locale) => {
   await i18n.changeLanguage(locale);
   const copy = locale === 'en' ? en : pt;
-  const shell = locale === 'en' ? shellEn : shellPt;
-  await ready(initialConfiguration(locale));
+  await ready(initialConfiguration(locale), false);
   const user = userEvent.setup();
-  fireEvent.change(screen.getByLabelText(copy.projectName), { target: { value: 'Keyboard set' } });
+  fireEvent.change(screen.getByLabelText(copy.label), { target: { value: 'Keyboard set' } });
   const jsonInput = screen.getByLabelText(copy.import) as HTMLInputElement;
-  saveButton().focus();
+  const language = screen.getByLabelText(i18n.t('language', { ns: 'workbench' }));
+  language.focus();
   await user.tab();
   expect(document.activeElement).not.toBe(jsonInput);
-  fireEvent.click(screen.getByRole('button', { name: copy.connectPedal }));
-  expect(screen.getByRole('button', { name: shell.flowContinue })).toBeTruthy();
-  expect(document.activeElement).toBe(document.getElementById('workspace'));
+  const nextLocale = locale === 'en' ? 'pt-BR' : 'en';
+  fireEvent.change(language, { target: { value: nextLocale } });
+  await waitFor(() => expect(i18n.language).toBe(nextLocale));
+  const nextCopy = nextLocale === 'en' ? en : pt;
+  const connectionCopy = nextLocale === 'en' ? connectionEn : connectionPt;
+  expect((screen.getByLabelText(nextCopy.label) as HTMLInputElement).value).toBe('Keyboard set');
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('offline', { ns: 'workbench' }) }));
+  const dialog = screen.getByRole('dialog', { name: i18n.t('connection', { ns: 'workbench' }) });
+  expect(within(dialog).getByRole('button', { name: connectionCopy.offline })).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: nextCopy.close }));
+  expect((screen.getByLabelText(nextCopy.label) as HTMLInputElement).value).toBe('Keyboard set');
+  await waitFor(async () => expect((await database.drafts.get('current'))?.configuration.groups[0]?.switches.A.label).toBe('Keyboard set'));
 });
 
 it('treats parsed key order as saved while preserving later edits during an asynchronous save', async () => {
@@ -284,13 +298,15 @@ it('treats parsed key order as saved while preserving later edits during an asyn
   await act(async () => { await result.current.save(); });
   expect(result.current.dirty).toBe(false);
   const waiting = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
   const save = database.save.bind(database);
-  vi.spyOn(database, 'save').mockImplementation(async (configuration, revision) => { await waiting.promise; return save(configuration, revision); });
+  vi.spyOn(database, 'save').mockImplementationOnce(async (...args) => { started.resolve(); await waiting.promise; return save(...args); });
   const beforeSave = structuredClone(edited);
   beforeSave.name = 'Before slow save';
   act(() => { result.current.setConfiguration(beforeSave); });
   let saving!: Promise<void>;
   act(() => { saving = result.current.save(); });
+  await act(async () => { await started.promise; });
   const laterEdit = structuredClone(beforeSave);
   laterEdit.name = 'Later edit';
   act(() => { result.current.setConfiguration(laterEdit); });
@@ -303,4 +319,5 @@ it('treats parsed key order as saved while preserving later edits during an asyn
   const reversed = structuredClone(reordered);
   reversed.groups[0]!.switches.A.actions[0]!.messages.reverse();
   expect(sameConfiguration(reordered, reversed)).toBe(false);
+  await act(async () => { await result.current.save(); });
 });
